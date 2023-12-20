@@ -26,6 +26,7 @@ let panelHeart;
 let panelGoldBag;
 //let ironcladGIF;
 let img_ironclad = [];
+let img_neow = [];
 let idx_ironclad = 0;
 let img_ironclad_corpse;
 let img_cultist_rally = [];
@@ -68,6 +69,9 @@ let img_countCircle;
 let img_deckButton;
 let img_discardButton;
 let img_vulnerable;
+let img_tipt1;
+let img_tipt2;
+let img_tipt3;
 let deck = [];
 let drawPile = deck;
 let discardPile = [];
@@ -78,7 +82,7 @@ let relics = ["BurningBlood"];
 let character = "Ironclad";
 let player_name = "Phoenix";
 let level = 1;
-let floor = 1;
+let floor = 0;
 let turn = 1;
 let numofCardtoDeal = 5;
 let numofPotionSlots = 3;
@@ -101,6 +105,7 @@ let cards = [];
 let rewards = [];
 let options = [];
 let gameState = "startScreen";
+//let gameState = "tutorial";
 //let gameState = "battle";
 //let gameState = "event";
 let playerSize = 2;
@@ -125,6 +130,7 @@ let showBubble = false;
 let bubbleTimer = 0;
 let bubbleText = "";
 let gameover = false;
+let neowEvent;
 let goldenShrineEvent;
 let eventData;
 let isCardBeingPlayed = false;
@@ -141,6 +147,12 @@ let canSelectNextFloor = false;
 let seed = 673465884448;
 let currentAct = 1;
 let currentBoss = 'hexaghost';
+let firstTimePlay = true;
+let tipNo = 1;
+let clickCooldown = 0;
+let selectedNodes = [];
+let currentPlayerNode = null;
+
 const bossPosition = {x: 960, y: 400};
 const floorHeight = 150;
 const discardButtonX = 1800;
@@ -151,7 +163,7 @@ const cancelButtonX = 0 ;
 const cancelButtonY = 880;
 const countCircleDiameter = 128;
 const EndTurnButtonX = 1550;
-const EndTurnButtonY = 800;
+const EndTurnButtonY = 850;
 const buttonMap = { x: 1600, y: 0, width: 100, height: 100 };
 const buttonDeck = { x: 1700, y: 0, width: 100, height: 100 };
 const buttonSettings = { x: 1800, y: 0, width: 100, height: 100 }
@@ -173,7 +185,7 @@ const cardData = {
     // Add more cards here
   };
 const enemyData = {
-      "Cultist": {name: "Cultist", maxhp: 40, basicdamage: 6, strength: 0, block: 0, weak: 0, intent: "attack", status: 0, damage: 6, width:340, height:340}//width:img_cultist_rally[0].width, height:img_cultist_rally[0].height},
+      "Cultist": {name: "Cultist", maxhp: 1, basicdamage: 6, strength: 0, block: 0, weak: 0, intent: "attack", status: 0, damage: 6, width:340, height:340}//width:img_cultist_rally[0].width, height:img_cultist_rally[0].height},
 }
 const boss ={
     "Hexaghost": {name: "Hexaghost", maxhp: 250, basicdamage: 6, strength: 0, block: 0, weak: 0, intent: "attack", status: 0, damage: 6, width:340, height:340}
@@ -202,6 +214,9 @@ function preload() {
         for (let i = 0; i <= 59; i++) {
             img_ironclad.push(loadImage(`assets/images/PNGs/ironclad_60f/${i}.png`));
         }
+    }
+    for (let i = 0; i <= 79; i++) {
+        img_neow.push(loadImage(`assets/images/PNGs/neow_idle_80f/${i}.png`));
     }
     for (let i = 0; i <= 261; i++) {
         img_cultist_rally.push(loadImage(`assets/images/PNGs/cultist_rally_262f/${i}.png`));
@@ -302,6 +317,9 @@ function loadRemainingAssets() {
     img_deck = loadImage('assets/images/topPanel/deck.png');
     img_settings = loadImage('assets/images/topPanel/settings.png');
     img_vulnerable = loadImage('assets/images/combat/vulnerable.png');
+    img_tipt1 = loadImage('assets/images/tip/t1.png');
+    img_tipt2 = loadImage('assets/images/tip/t2.png');
+    img_tipt3 = loadImage('assets/images/tip/t3.png');
     mapData = loadJSON('assets/maps/673465884448_Act1.json');
     
     //ironcladGIF = loadImage('assets/images/new_Ironclad.gif');
@@ -381,6 +399,13 @@ function handleGameState(){
         case "startScreen":
             displayStartScreen();
             break;
+        case "tutorial":
+            showTutorial();
+            break;
+        case "map":
+            showMapOverlay = true;
+            //handleMapClicking();
+            break;
         case "battle":
             displayPlayingScreen();
             handleTurns();
@@ -413,6 +438,7 @@ function beginTurn() {
         enemy.decrementVulnerable();
     }
     player.decrementVulnerable();
+    
     timing = PLAYER_TURN;
     for (let enemy of enemies){
         enemy.TurnTaken = false;
@@ -422,10 +448,10 @@ function beginTurn() {
 function playerTurnActions() {
     showTurnStartAnimation(timing);
     handleCardDragging();
-    text("MouseX "+int(mouseX), 200, 150);
+    /*text("MouseX "+int(mouseX), 200, 150);
     text("MouseY "+int(mouseY), 200, 200);
     text("Mouse over Player= "+mouseIsOver(player,1), 300, 250);
-    text("Mouse over Enemy= "+mouseIsOver(enemies,1), 300, 300);
+    text("Mouse over Enemy= "+mouseIsOver(enemies,1), 300, 300);*/
 }
 
 function enemyTurnActions() {
@@ -475,7 +501,7 @@ function displayStartScreen() {
     strokeWeight(5);
     textAlign(CENTER, CENTER);
     text(tx, width / 2, height - height / 5);
-    playMusic(titleMusic);
+    //playMusic(titleMusic);
 }
 
 function displayPlayingScreen() {
@@ -483,7 +509,7 @@ function displayPlayingScreen() {
     textAlign(LEFT, BASELINE);
     displaytopPanel();
     titleMusic.stop();
-    playMusic(battleMusic);
+    //playMusic(battleMusic);
     rewardsCollected = false;
     player.display();
     for (let enemy of enemies){
@@ -525,9 +551,7 @@ function displayMapOverlay(){
     // Cover the screen with a semi-transparent background
     fill(0, 0, 0, 150);
     rect(0, 128, width, height-128);
-    // Display the combined map image
     image(longMap, 0, mapY);
-    // Display the grid nodes on the map
     if (mapData) {
         drawMapPathsAndRooms(mapData);
     }
@@ -551,9 +575,9 @@ function displayMapOverlay(){
 
 }
 function displayLegend() {
-    let legendX = 1700; // Adjust this based on your layout
-    let legendYStart = 500; // Center the legend vertically
-    let yOffset = 60; // Vertical space between items
+    let legendX = 1700;
+    let legendYStart = 500;
+    let yOffset = 60;
     push();
     textAlign(CENTER);
     fill(0);
@@ -561,16 +585,48 @@ function displayLegend() {
     image(mapLegend, legendX, legendYStart);
     let y = legendYStart-100;
     textSize(60);
+    noStroke();
     text("Legend", legendX, y - 80);
     for (let roomType in icons) {
         textSize(40);
         tint(0);
-        image(icons[roomType], legendX-100, y, 100, 100); // Adjust size as needed
-        text(legend[roomType], legendX + 50, y-10); // Adjust text positioning as needed
+        noStroke();
+        image(icons[roomType], legendX-100, y, 100, 100);
+        text(legend[roomType], legendX + 50, y-10);
         y += yOffset;
     }
     pop();
 }
+function drawSelectedNodeCircle(x, y) {
+    push();
+    stroke(255, 0, 0); // Red color for the circle
+    strokeWeight(3); // Stroke weight for the circle
+    noFill(); // No fill for the circle
+    ellipse(x + 64, y + 64, 80, 80); // Draw the circle
+    pop();
+}
+
+// Example of how to add a node to the selectedNodes list
+// This needs to be triggered by some event, like a mouse click
+function selectNode(node) {
+    if (!isSelectedNode(node)) {
+        selectedNodes.push(node);
+    }
+}
+function isSelectedNode(node) {
+    return selectedNodes.some(selected => selected.x === node.x && selected.y === node.y);
+}
+function canSelectNode(node) {
+    // Allow selection of the first node (starting position)
+    if (currentPlayerNode === null) return true;
+
+    // Check if 'node' is connected to 'currentPlayerNode'
+    return mapData.edges.some(edge => 
+        (edge.src_x === currentPlayerNode.x && edge.src_y === currentPlayerNode.y && edge.dst_x === node.x && edge.dst_y === node.y) ||
+        (edge.dst_x === currentPlayerNode.x && edge.dst_y === currentPlayerNode.y && edge.src_x === node.x && edge.src_y === node.y)
+    );
+}
+
 function drawMapPathsAndRooms(mapData) {
     push();
     stroke(100);
@@ -599,11 +655,14 @@ function drawMapPathsAndRooms(mapData) {
             line(roomX, roomY, bossPosX, bossPosY+120);
         }
         if (icons[node.class]) {
-            if (node.y === floor - 1) {
+            if (node.y === floor) {
                 tint(0);
             }
             image(icons[node.class], x, y);
             noTint();
+        }
+        if (isSelectedNode(node)) {
+            drawSelectedNodeCircle(calculateX(node.x) - 64, mapY + calculateY(node.y) - 64);
         }
     });    
     if (bossIcons[currentBoss]) {
@@ -679,8 +738,96 @@ function hideDeckOverlay() {
 function hideSettingsOverlay() {
     showSettingsOverlay = false;
 }
+function onNodeSelected(node) {
+    if (canSelectNode(node)) {
+        selectNode(node); // Add to selectedNodes list if not already there
+        currentPlayerNode = node; // Update the player's current position
+        console.log("Node selected:", node);
+        switch (node.class) {
+            case "MonsterRoom":
+                if (firstTimePlay){
+                    gameState = "tutorial";
+                    hideMapOverlay();
+                }else{
+                    gameState = "battle";
+
+                    toggleMapOverlay();
+                    floor ++;
+                }
+                break;
+            case "EventRoom":
+                gameState = "Event";
+                toggleMapOverlay();
+                floor ++;
+                // Prepare the shop
+                break;
+            // Handle other room types
+        }
+    }
+}
+function firstTimeMapSelection(){
+    gameState = "map";
+    let currentFloorY = calculateY(floor);
+    mapY = height - currentFloorY - floorHeight*2;
+    textSize(100);
+    text("Select a Starting Room", width, height);
+}
+function showTutorial(){
+    if (tipNo == 4){
+        firstTimePlay = false;
+        gameState = "battle";
+        floor = 1;
+        tipNo = 1;
+        return;
+    }
+    background(25,31,34);
+    let tipImage;
+    switch (tipNo){
+        case 1: tipImage = img_tipt1; break;
+        case 2: tipImage = img_tipt2; break;
+        case 3: tipImage = img_tipt3; break;
+    }
+    let textXPos = width/2;
+    image(tipImage, width/4-tipImage.width/2, height/2-tipImage.height/2);
+    noTint();
+    fill(255);
+    textSize(100);
+    textAlign(CENTER, CENTER);
+    text("Tutorial", width/2, height/8);
+    textSize(40);
+    textAlign(LEFT, CENTER);
+    if (tipNo == 1){
+        text("Defeat enemies by playing cards from your hand!", textXPos, height/3);
+        text("Cards require Energy to play.", textXPos, height/3+100);
+        text("Once you are out, End your turn.", textXPos, height/3+150);
+        text("At the start of your turn, new cards are", textXPos, height/3+300);
+        text("drawn and your Energy is replenished.", textXPos, height/3+350);
+    }else if (tipNo == 2){
+        text("Play defensive cards to gain Block", textXPos, height/3);
+        text("when enemies are about to attack you.", textXPos, height/3+50);
+        text("Block reduces incoming attack damage but ", textXPos, height/3+200);
+        text("wears off at the start of your next turn", textXPos, height/3+250);
+    }else if (tipNo == 3){
+        text("During your turn, you can observe an", textXPos, height/3);
+        text("enemy's Intent above them", textXPos, height/3+50);
+        text("If an enemy is intent on attacking you", textXPos, height/3+200);
+        text("be sure to gain some Block!", textXPos, height/3+250);
+    }
+    drawProceedButton();
+    //handleProceedButton();
+}
 function mousePressed() {
     if (gameState !== "startScreen") {
+            if (gameState === "map" && showMapOverlay) {
+                mapData.nodes.forEach(node => {
+                    let x = calculateX(node.x);
+                    let y = mapY + calculateY(node.y);
+                    if (dist(mouseX, mouseY, x, y) < 10) {
+                        onNodeSelected(node);
+                        selectNode(node);
+                    }
+                });
+            }
         // Check for top panel button clicks
         if (isInside(mouseX, mouseY, buttonMap)) {
             toggleMapOverlay();
@@ -699,8 +846,17 @@ function mousePressed() {
     if (gameState === "startScreen") {
         let d = dist(mouseX, mouseY, width / 2, height - height / 5);
         if (d < 100) { // Assuming the button has an approximate "radius" of 100
-            gameState = "battle";
+            if (firstTimePlay){
+                firstTimeMapSelection();
+            }else {
+                gameState = "neow";
+                let currentFloorY = calculateY(floor);
+                mapY = height - currentFloorY - floorHeight*2;
+            }
+            //gameState = "battle";
         }
+    } else if (gameState ==="tutorial"){
+        handleProceedButton();
     } else if (gameState === "battle"){
         // If a card is clicked, select it and highlight it
         if (timing === PLAYER_TURN) {
@@ -1269,9 +1425,15 @@ function handleProceedButton() {
     if (mouseX > proceedButtonX && mouseX < proceedButtonX + img_proceedButton.width &&
         mouseY > proceedButtonY && mouseY < proceedButtonY + img_proceedButton.height) {
         // The mouse is within the proceed button area, go to the next event
-        floor ++;
-        gameState = "event";
-        //gameState = "StartScreen";
+       //floor ++;
+        if (firstTimePlay){
+            tipNo ++;
+        }else{
+            gameState = "map";
+            let currentFloorY = calculateY(floor);
+            mapY = height - currentFloorY - floorHeight*2;
+        }
+        //clickCooldown = 60;
         
     }
   }
@@ -1279,15 +1441,21 @@ function handleProceedButton() {
 function drawProceedButton() {
     // Update the button's appearance based on whether rewards have been collected
     push();
-    if (rewardsCollected) {
+    //if (rewardsCollected) {
       //tint(255); // Full opacity
-    } else {
+    //} else {
       //tint(255, 126); // Half opacity
-    }
+    //}
     let proceedButtonText;
     if (rewards.length === 0){
         proceedButtonText = "Proceed";
     }else proceedButtonText = "Skip Rewards";
+    if (firstTimePlay){
+        proceedButtonText = "Next";
+        if (tipNo == 3){
+            proceedButtonText = "I'm Ready!";
+        }
+    }
     image(img_proceedButton, proceedButtonX, proceedButtonY);
     textSize(35);
     textAlign(CENTER, CENTER);
@@ -1399,7 +1567,7 @@ function displayEndTurnButton(){
 }
 
 function handleEndTurnButton() {
-    if (timing === REWARD_SCREEN) {
+    if (timing != PLAYER_TURN) {
         return;
     }
     let buttonWidth = endTurnButton.width;
