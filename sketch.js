@@ -4,6 +4,7 @@ let titleLogo;
 let bar;
 let titleMusic;
 let battleMusic;
+let RestFireDry;
 let sfx_BattleStart;
 let sfx_BlockAtk;
 let sfx_CardReject;
@@ -20,6 +21,9 @@ let sfx_IronClad_Atk = [];
 let sfx_PlayerTurn = [];
 let sfx_Victory;
 let sfx_Gold;
+let sfx_buff;
+let AmbienceMusic;
+let sfx_GameOver;
 let font;
 let keyslots;
 let panelHeart;
@@ -73,6 +77,9 @@ let img_vulnerable;
 let img_tipt1;
 let img_tipt2;
 let img_tipt3;
+let img_shoulder;
+let img_fire1;
+let img_fire2;
 let deck = [];
 let deckInitialized = false;
 let drawPile = deck;
@@ -111,6 +118,7 @@ let gameState = "startScreen";
 //let gameState = "tutorial";
 //let gameState = "battle";
 //let gameState = "event";
+//let gameState = "campfire";
 let playerSize = 2;
 let cardScale = 0.3;
 //TURN MECHANICS
@@ -149,7 +157,9 @@ let icons = [];
 let bossIcons = [];
 let mapData;
 let canSelectNextFloor = false;
-let seed = 673465884448;
+let seed1 = 673465884448;
+let seed2 = 123456789;
+let seed;
 let currentAct = 1;
 let currentBoss = 'hexaghost';
 let firstTimePlay = true;
@@ -162,6 +172,9 @@ let eventTransitionActive = false;
 let eventTransitionStartTime = 0;
 const eventTransitionDuration = 1000;
 let eventNo = 0;
+let fire = [];
+let img_smith;
+let img_sleep;
 
 
 const bossPosition = {x: 960, y: 400};
@@ -196,16 +209,16 @@ const cardData = {
     // Add more cards here
   };
 const enemyData = {
-    "Cultist": {name: "Cultist", maxhp:48, basicdamage: 6, strength: 0, block: 0, weak: 0, intent: "attack", status: 0, damage: 6, width:340, height:340, image: img_cultist_rally, frames:262},
-    "Jaw Worm": {name: "Jaw Worm", maxhp: 40, basicdamage: 11, strength: 0, block: 0, weak: 0, intent: "attack", status: 0, damage: 6, width:340, height:340, image: img_jawworm, frames:94},
+    "Cultist": {name: "Cultist", maxhp:8, basicdamage: 6, strength: 0, block: 0, weak: 0, intent: "attack", status: 0, damage: 6, width:340, height:340, image: img_cultist_rally, frames:262},
+    "Jaw Worm": {name: "Jaw Worm", maxhp: 4, basicdamage: 11, strength: 0, block: 0, weak: 0, intent: "attack", status: 0, damage: 6, width:340, height:340, image: img_jawworm, frames:94},
     "Red Louse": {name: "Red Louse", maxhp: 10, basicdamage: 5, strength: 0, block: 0, weak: 0, intent: "attack", status: 0, damage: 6, width:340, height:340},
     "Green Louse": {name: "Green Louse", maxhp: 11, basicdamage: 5, strength: 0, block: 0, weak: 0, intent: "attack", status: 0, damage: 6, width:340, height:340},
     "Acid Slime": {name: "Acid Slime", maxhp: 8, basicdamage: 3, strength: 0, block: 0, weak: 0, intent: "attack", status: 0, damage: 6, width:340, height:340},
     "Spike Slime": {name: "Spike Slime", maxhp: 10, basicdamage: 5, strength: 0, block: 0, weak: 0, intent: "attack", status: 0, damage: 6, width:340, height:340}
     }
 const act1Encounters = [
-    { name: "Cultist", enemies: ["Cultist"], probability: 0.5 },
-    { name: "Jaw Worm", enemies: ["Jaw Worm"], probability: 0.5 },
+    { name: "Cultist", enemies: ["Cultist"], probability: 0.75 },
+    { name: "Jaw Worm", enemies: ["Jaw Worm"], probability: 0.25 },
     { name: "2 Louses", enemies: ["Red Louse"], probability: 0 },//["Red Louse","Green Louse"]
     { name: "small slimes", enemies: ["Acid Slime"], probability: 0}//["Acid Slime","Spike Slime"]
 ];
@@ -222,6 +235,8 @@ function preload() {
     title1 = loadImage('assets/images/title1.png');
     titleMusic = loadSound('assets/audio/music/MenuTheme.ogg');
     AmbienceMusic = loadSound('assets/audio/music/Ambience.ogg');
+    RestFireDry = loadSound('assets/audio/music/RestFireDry.ogg');
+    BossMusic = loadSound('assets/audio/music/Boss.ogg');
     font = loadFont('assets/fonts/Kreon-Regular.ttf');
     eventData = loadJSON('assets/data/events.json');
     for (let i = 1; i <= 3; i++) {
@@ -277,6 +292,7 @@ function preload() {
     sfx_Victory = loadSound('assets/audio/sfx/Victory.ogg');
     sfx_Gold = loadSound('assets/audio/sfx/Gold.ogg');
     sfx_buff = loadSound('assets/audio/sfx/Buff.ogg');
+    sfx_GameOver = loadSound('assets/audio/sfx/GameOver.ogg');
     mapTop = loadImage('assets/images/map/mapTop.png');
     mapMid = loadImage('assets/images/map/mapMid.png');
     mapBot = loadImage('assets/images/map/mapBot.png');
@@ -297,13 +313,13 @@ function preload() {
     bossIcons.awakened = loadImage('assets/images/map/boss/awakened.png');
     bossIcons.timeeater = loadImage('assets/images/map/boss/timeeater.png');
     bossIcons.donu = loadImage('assets/images/map/boss/donu.png');
+    battleBackground = loadImage('assets/images/battlebackground.png');
     essentialAssetsLoaded = true;
     console.log("Essential assets loaded");
 }
 function loadRemainingAssets() {
     // Load all other assets
     //background(titleBackground);
-    battleBackground = loadImage('assets/images/battlebackground.png');
     bar = loadImage('assets/images/topPanel/bar.png');
     panelHeart = loadImage('assets/images/topPanel/panelHeart.png');
     keyslots = loadImage('assets/images/topPanel/key_slots.png');
@@ -349,7 +365,14 @@ function loadRemainingAssets() {
     img_tipt1 = loadImage('assets/images/tip/t1.png');
     img_tipt2 = loadImage('assets/images/tip/t2.png');
     img_tipt3 = loadImage('assets/images/tip/t3.png');
-    mapData = loadJSON('assets/maps/673465884448_Act1.json');
+    img_fire1 = loadImage('assets/images/fire1.png');
+    img_fire2 = loadImage('assets/images/fire2.png');
+    img_shoulder = loadImage('/assets/spine/newironclad/shoulder.png');
+    img_campfire = loadImage('/assets/images/campfire.png');
+    img_smith = loadImage('/assets/images/campfire/smith.png');
+    img_sleep = loadImage('/assets/images/campfire/sleep.png');
+    mapData1 = loadJSON('assets/maps/673465884448_Act1.json');
+    mapData2 = loadJSON('assets/maps/123456789_Act1.json');
     
     //ironcladGIF = loadImage('assets/images/new_Ironclad.gif');
     for (let i = 1; i <= 6; i++){
@@ -368,6 +391,7 @@ function setup() {
     createCanvas(1920,1080);
     pixelDensity(1);
     outputVolume(0.2);
+    playMusic(AmbienceMusic);
     if (essentialAssetsLoaded) {
         displayStartScreen("Loading...");
         // Load the remaining assets
@@ -377,6 +401,13 @@ function setup() {
         cloudObjects.push(new Cloud(img, random(width), random(height), random([-1, 1])));
     }
     loadRemainingAssets();
+    if (Math.random() < 0.5) {
+        seed = seed1;
+        mapData = mapData1;
+    } else {
+        seed = seed2;
+        mapData = mapData2;
+    }
     initializeDeck();
     proceedButtonX = width - 500;
     proceedButtonY = height - 500;
@@ -454,7 +485,6 @@ function draw() {
     if (gameState != "startSceen" && deckInitialized){
         displaytopPanel();
     }
-    console.log(clickCooldown);
 }
 function handleGameState(){
     switch(gameState){
@@ -480,6 +510,9 @@ function handleGameState(){
             displayShopScreen();
             handlePurchase();
             break;
+        case "campfire":
+            displayCampfire();
+            break;
     }
 }
 function handleTurns() {
@@ -498,6 +531,7 @@ function handleTurns() {
 function handlePurchase(){
     
 }
+
 function beginTurn() {
     turnNumber++;
     console.log("Turn", turnNumber, "Starts");
@@ -581,7 +615,7 @@ function displayStartScreen() {
     textAlign(CENTER, CENTER);
     text(tx, width / 2, height - height / 5);
     playMusic(titleMusic);
-    playMusic(AmbienceMusic);
+    //playMusic(AmbienceMusic);
 }
 
 function displayPlayingScreen() {
@@ -645,7 +679,82 @@ function displayShopScreen(){
     currentEvent = bigFishEvent;
     currentEvent.display();
 }
-handlePurchase();
+
+function displayCampfire(){
+    titleMusic.stop();
+    battleMusic.stop();
+    playMusic(RestFireDry);
+    noTint();
+    background(0); // Set a background color, if needed
+
+  // Calculate the center crop of the battleBackground
+  let srcX = battleBackground.width / 3;
+  let srcY = battleBackground.height / 3;
+  let srcW = battleBackground.width / 2; // Crop width
+  let srcH = battleBackground.height / 2; // Crop height
+
+  // Destination rectangle
+  let destX = 0;
+  let destY = 0;
+  let destW = width;
+  let destH = height;
+
+  // Draw the cropped image
+    image(battleBackground, destX, destY, destW, destH, srcX, srcY, srcW, srcH);
+    image(img_campfire, width/2, height/2);
+    image(img_shoulder, 0, 1080-1136);
+    runFire();
+    image(img_sleep, 600,200);
+    text("Rest", 700, 440);
+    image(img_smith, 1000,200);
+    text("Smith", 1100, 440);
+    textSize(50);
+    text("What to do?", 800, 200);
+    textSize(25);
+    textAlign(CENTER, CENTER);
+    text("Heal for 30% of your Max HP("+int(player.maxhp*0.3)+").", 720, 470);
+    text("Upgrade a card in your deck.", 1160, 470);
+}
+function handleRestOptions(){
+// Assuming img_sleep and img_smith have width and height properties
+let sleepArea = {
+    x: 600,
+    y: 200,
+    width: img_sleep.width,
+    height: img_sleep.height
+};
+
+let smithArea = {
+    x: 1000,
+    y: 200,
+    width: img_smith.width,
+    height: img_smith.height
+};
+if (mouseX >= sleepArea.x && mouseX <= sleepArea.x + sleepArea.width &&
+    mouseY >= sleepArea.y && mouseY <= sleepArea.y + sleepArea.height) {
+    // The mouse click is within the sleep image
+    console.log("Sleep option selected");
+    healHP(int(player.maxhp*0.3));
+    sfx_buff.play();
+    gameState = "map";
+    let currentFloorY = calculateY(floor);
+    mapY = height - currentFloorY - floorHeight*2;
+    battleMusic.play();
+
+}
+else if (mouseX >= smithArea.x && mouseX <= smithArea.x + smithArea.width &&
+         mouseY >= smithArea.y && mouseY <= smithArea.y + smithArea.height) {
+    // The mouse click is within the smith image
+    console.log("Smith option selected");
+    // Handle smith option logic here
+}
+}
+function runFire() {
+    fire = new ParticleSystem(width* 3 / 4, height / 2 + 50);
+    fire.addParticle();
+    fire.run();
+}
+
 function displayMapOverlay(){
     noTint();
     // Cover the screen with a semi-transparent background
@@ -836,7 +945,7 @@ function playMusic(music) {
     if (music.isPlaying() == false) { //Avoid music repeating
         //setVolume(0.2);
         music.play();
-        //music.loop();
+        music.loop();
     }
 }
 function isInside(x, y, button) {
@@ -895,6 +1004,12 @@ function onNodeSelected(node) {
             case "ShopRoom":
                 gameState = "shop";
                 //gameState = "event";
+                eventTransitionActive = true;
+                eventTransitionStartTime = millis();
+                toggleMapOverlay();
+                floor ++;
+            case "RestRoom":
+                gameState = "campfire";
                 eventTransitionActive = true;
                 eventTransitionStartTime = millis();
                 toggleMapOverlay();
@@ -1052,7 +1167,7 @@ function mousePressed() {
         if (timing === GAME_OVER){
             handleReturntoTitleButton();
         }
-    } else if (gameState === "event"){
+    } else if (gameState === "event" || gameState === "shop"){
         if (eventTransitionActive) {
             return; // Ignore clicks during the transition
         }
@@ -1061,7 +1176,7 @@ function mousePressed() {
         let optionXStart = width / 2 - 125;
         let optionWidth = img_enabledButton.width;
       
-        goldenShrineEvent.options.forEach((option, index) => {
+        currentEvent.options.forEach((option, index) => {
           let optionY = optionYStart + index * optionHeight;
 
           if (
@@ -1075,8 +1190,9 @@ function mousePressed() {
             }
           }
         });
-    }
-    clickCooldown = 15;
+    } else if (gameState === "campfire"){
+        handleRestOptions();
+    }clickCooldown = 15;
 }
 function mouseReleased() {
     if (draggingCard) {
@@ -1468,6 +1584,7 @@ function checkForGameOver() {
         console.log("Game Over!");
         timing = GAME_OVER;
         battleMusic.stop();
+        sfx_GameOver.play();
     }
 }
 
