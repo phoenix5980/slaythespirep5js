@@ -221,6 +221,7 @@ function preload() {
     titleLogo = loadImage('assets/images/titlelogo.png');
     title1 = loadImage('assets/images/title1.png');
     titleMusic = loadSound('assets/audio/music/MenuTheme.ogg');
+    AmbienceMusic = loadSound('assets/audio/music/Ambience.ogg');
     font = loadFont('assets/fonts/Kreon-Regular.ttf');
     eventData = loadJSON('assets/data/events.json');
     for (let i = 1; i <= 3; i++) {
@@ -579,7 +580,8 @@ function displayStartScreen() {
     strokeWeight(5);
     textAlign(CENTER, CENTER);
     text(tx, width / 2, height - height / 5);
-    //playMusic(titleMusic);
+    playMusic(titleMusic);
+    playMusic(AmbienceMusic);
 }
 
 function displayPlayingScreen() {
@@ -587,7 +589,7 @@ function displayPlayingScreen() {
     textAlign(LEFT, BASELINE);
     //displaytopPanel();
     titleMusic.stop();
-    //playMusic(battleMusic);
+    playMusic(battleMusic);
     rewardsCollected = false;
     player.display();
     for (let enemy of enemies){
