@@ -209,8 +209,8 @@ const cardData = {
     // Add more cards here
   };
 const enemyData = {
-    "Cultist": {name: "Cultist", maxhp:8, basicdamage: 6, strength: 0, block: 0, weak: 0, intent: "attack", status: 0, damage: 6, width:340, height:340, image: img_cultist_rally, frames:262},
-    "Jaw Worm": {name: "Jaw Worm", maxhp: 4, basicdamage: 11, strength: 0, block: 0, weak: 0, intent: "attack", status: 0, damage: 6, width:340, height:340, image: img_jawworm, frames:94},
+    "Cultist": {name: "Cultist", maxhp:48, basicdamage: 6, strength: 0, block: 0, weak: 0, intent: "attack", status: 0, damage: 6, width:340, height:340, image: img_cultist_rally, frames:262},
+    "Jaw Worm": {name: "Jaw Worm", maxhp: 40, basicdamage: 8, strength: 0, block: 0, weak: 0, intent: "attack", status: 0, damage: 6, width:340, height:340, image: img_jawworm, frames:94},
     "Red Louse": {name: "Red Louse", maxhp: 10, basicdamage: 5, strength: 0, block: 0, weak: 0, intent: "attack", status: 0, damage: 6, width:340, height:340},
     "Green Louse": {name: "Green Louse", maxhp: 11, basicdamage: 5, strength: 0, block: 0, weak: 0, intent: "attack", status: 0, damage: 6, width:340, height:340},
     "Acid Slime": {name: "Acid Slime", maxhp: 8, basicdamage: 3, strength: 0, block: 0, weak: 0, intent: "attack", status: 0, damage: 6, width:340, height:340},
@@ -367,10 +367,10 @@ function loadRemainingAssets() {
     img_tipt3 = loadImage('assets/images/tip/t3.png');
     img_fire1 = loadImage('assets/images/fire1.png');
     img_fire2 = loadImage('assets/images/fire2.png');
-    img_shoulder = loadImage('/assets/spine/newironclad/shoulder.png');
-    img_campfire = loadImage('/assets/images/campfire.png');
-    img_smith = loadImage('/assets/images/campfire/smith.png');
-    img_sleep = loadImage('/assets/images/campfire/sleep.png');
+    img_shoulder = loadImage('assets/spine/newironclad/shoulder.png');
+    img_campfire = loadImage('assets/images/campfire.png');
+    img_smith = loadImage('assets/images/campfire/smith.png');
+    img_sleep = loadImage('assets/images/campfire/sleep.png');
     mapData1 = loadJSON('assets/maps/673465884448_Act1.json');
     mapData2 = loadJSON('assets/maps/123456789_Act1.json');
     
