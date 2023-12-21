@@ -66,7 +66,7 @@ class Event {
           this.options = [{
             text: "[Leave]",
             enabled: true,
-            description: "Leave the event and return to the title screen.",
+            description: "You left the "+this.title,
             penalty: null,
             action: () => this.leaveEvent()
           }];
@@ -78,12 +78,14 @@ class Event {
       }
       leaveEvent() {
         if (!this.hasLeft) { // Check if the leave event has already been triggered
-            returnToTitle();
-            this.hasLeft = true; // Ensure that the leave event isn't triggered again
+          gameState = "map";
+          let currentFloorY = calculateY(floor);
+          mapY = height - currentFloorY - floorHeight*2;
+          this.hasLeft = true; // Ensure that the leave event isn't triggered again
         }
     }
     displayFeedback() {
-        console.log("Displaying feedback for the selected option.");
+        //console.log("Displaying feedback for the selected option.");
     }
   }
 

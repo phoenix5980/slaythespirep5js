@@ -98,7 +98,7 @@ let angle = 0;
 let player;
 //let enemy;
 let enemies = [];
-let numofEnemies = 2;
+let numofEnemies = 1;
 let arrow;
 let currentFloor = 1;
 let cards = [];
@@ -152,6 +152,7 @@ let tipNo = 1;
 let clickCooldown = 0;
 let selectedNodes = [];
 let currentPlayerNode = null;
+let clicked = false;
 
 const bossPosition = {x: 960, y: 400};
 const floorHeight = 150;
@@ -185,8 +186,19 @@ const cardData = {
     // Add more cards here
   };
 const enemyData = {
-      "Cultist": {name: "Cultist", maxhp: 1, basicdamage: 6, strength: 0, block: 0, weak: 0, intent: "attack", status: 0, damage: 6, width:340, height:340}//width:img_cultist_rally[0].width, height:img_cultist_rally[0].height},
-}
+    "Cultist": {name: "Cultist", maxhp: 48, basicdamage: 6, strength: 0, block: 0, weak: 0, intent: "attack", status: 0, damage: 6, width:340, height:340, image: img_cultist_rally, frames:262},
+    "Jaw Worm": {name: "Jaw Worm", maxhp: 40, basicdamage: 11, strength: 0, block: 0, weak: 0, intent: "attack", status: 0, damage: 6, width:340, height:340},
+    "Red Louse": {name: "Red Louse", maxhp: 10, basicdamage: 5, strength: 0, block: 0, weak: 0, intent: "attack", status: 0, damage: 6, width:340, height:340},
+    "Green Louse": {name: "Green Louse", maxhp: 11, basicdamage: 5, strength: 0, block: 0, weak: 0, intent: "attack", status: 0, damage: 6, width:340, height:340},
+    "Acid Slime": {name: "Acid Slime", maxhp: 8, basicdamage: 3, strength: 0, block: 0, weak: 0, intent: "attack", status: 0, damage: 6, width:340, height:340},
+    "Spike Slime": {name: "Spike Slime", maxhp: 10, basicdamage: 5, strength: 0, block: 0, weak: 0, intent: "attack", status: 0, damage: 6, width:340, height:340}
+    }
+const act1Encounters = [
+    { name: "Cultist", enemies: ["Cultist"], probability: 1 },
+    { name: "Jaw Worm", enemies: ["Jaw Worm"], probability: 0 },
+    { name: "2 Louses", enemies: ["Red Louse"], probability: 0 },//["Red Louse","Green Louse"]
+    { name: "small slimes", enemies: ["Acid Slime"], probability: 0}//["Acid Slime","Spike Slime"]
+];
 const boss ={
     "Hexaghost": {name: "Hexaghost", maxhp: 250, basicdamage: 6, strength: 0, block: 0, weak: 0, intent: "attack", status: 0, damage: 6, width:340, height:340}
 }
@@ -356,9 +368,7 @@ function setup() {
     longMap.image(mapBot, 0, mapTop.height + mapMid.height);
     initializeDeck();
     player = new Player(playerX, playerY);
-    for (let i = 0; i < numofEnemies; i++) {
-        enemies.push(new Enemy("Cultist",enemyX+i*340, enemyY));
-    }
+    startBattle();
     goldenShrineEvent = new Event(
         "Golden Shrine",
         "Before you lies an elaborate shrine to an ancient spirit.",
@@ -378,6 +388,9 @@ function setup() {
 
 function draw() {
     //console.log(timing);
+    if (clickCooldown > 0) {
+        clickCooldown--;
+    }
     pixelDensity(1);
     handleGameState();
     if (arrow) {
@@ -552,6 +565,9 @@ function displayMapOverlay(){
     fill(0, 0, 0, 150);
     rect(0, 128, width, height-128);
     image(longMap, 0, mapY);
+    textSize(30);
+    noStroke();
+    text("Select a Black Room", width/2, height*7/8);
     if (mapData) {
         drawMapPathsAndRooms(mapData);
     }
@@ -625,6 +641,28 @@ function canSelectNode(node) {
         (edge.src_x === currentPlayerNode.x && edge.src_y === currentPlayerNode.y && edge.dst_x === node.x && edge.dst_y === node.y) ||
         (edge.dst_x === currentPlayerNode.x && edge.dst_y === currentPlayerNode.y && edge.src_x === node.x && edge.src_y === node.y)
     );
+}
+function getRandomEncounter(encounters) {
+    let totalProbability = encounters.reduce((acc, encounter) => acc + encounter.probability, 0);
+    let random = Math.random() * totalProbability;
+    for (let encounter of encounters) {
+        if (random < encounter.probability) {
+            return encounter;
+        }
+        random -= encounter.probability;
+    }
+    return null; // In case something goes wrong
+}
+function startBattle() {
+    timing = TURN_START;
+    const encounter = getRandomEncounter(act1Encounters);
+    enemies = []; // Clear existing enemies
+    for (let enemyType of encounter.enemies) {
+        console.log(enemyType);
+        enemies.push(new Enemy(enemyType,enemyX, enemyY));//enemyX+i*340
+        // Spawn enemies based on the encounter
+        // Use appropriate positions (x, y) for each enemy
+    }
 }
 
 function drawMapPathsAndRooms(mapData) {
@@ -749,14 +787,14 @@ function onNodeSelected(node) {
                     gameState = "tutorial";
                     hideMapOverlay();
                 }else{
+                    startBattle();
                     gameState = "battle";
-
                     toggleMapOverlay();
                     floor ++;
                 }
                 break;
             case "EventRoom":
-                gameState = "Event";
+                gameState = "event";
                 toggleMapOverlay();
                 floor ++;
                 // Prepare the shop
@@ -817,6 +855,10 @@ function showTutorial(){
     //handleProceedButton();
 }
 function mousePressed() {
+    if (clickCooldown > 0) {
+        return; // Ignore the click because cooldown is active
+    }
+    clicked = true;
     if (gameState !== "startScreen") {
             if (gameState === "map" && showMapOverlay) {
                 mapData.nodes.forEach(node => {
@@ -903,35 +945,16 @@ function mousePressed() {
 
     }
         if (timing === REWARD_SCREEN){
+            player.energy = maxEnergy;
+            returncurrentHand();
             handleRewardClick();
             handleProceedButton();
         }
         if (timing === GAME_OVER){
             handleReturntoTitleButton();
         }
-    } else if (gameState === "event"){
-        let optionHeight = img_enabledButton.height;
-        let optionYStart = height / 2 + 100;
-        let optionXStart = width / 2 - 125;
-        let optionWidth = img_enabledButton.width;
-      
-        goldenShrineEvent.options.forEach((option, index) => {
-          let optionY = optionYStart + index * optionHeight;
-      
-          // Check if the mouse click is within the bounds of the option
-          if (
-            mouseX > optionXStart &&
-            mouseX < optionXStart + optionWidth &&
-            mouseY > optionY &&
-            mouseY < optionY + optionHeight
-          ) {
-            // Check if the option is enabled before selecting it
-            if (option.enabled) {
-              goldenShrineEvent.selectOption(index);
-            }
-          }
-        });
     }
+    clickCooldown = 30;
 }
 function mouseReleased() {
     if (draggingCard) {
@@ -950,6 +973,32 @@ function mouseReleased() {
         draggingCard = null;
         selectedCard = null;
         arrow = null;
+    }
+    if (clicked){
+        clicked = false;
+        if (gameState === "event"){
+            let optionHeight = img_enabledButton.height;
+            let optionYStart = height / 2 + 100;
+            let optionXStart = width / 2 - 125;
+            let optionWidth = img_enabledButton.width;
+          
+            goldenShrineEvent.options.forEach((option, index) => {
+              let optionY = optionYStart + index * optionHeight;
+          
+              // Check if the mouse click is within the bounds of the option
+              if (
+                mouseX > optionXStart &&
+                mouseX < optionXStart + optionWidth &&
+                mouseY > optionY &&
+                mouseY < optionY + optionHeight
+              ) {
+                // Check if the option is enabled before selecting it
+                if (option.enabled) {
+                  goldenShrineEvent.selectOption(index);
+                }
+              }
+            });
+        }
     }
 }
 function mouseIsOver(entity, scaleFactor) {
@@ -1588,6 +1637,12 @@ function discardcurrentHand(){
         discardPile.push(currentHand.pop());
     }
 }
+function returncurrentHand(){
+    while (currentHand.length > 0) {
+        // Animation of moving remaining cards in currentHand to discardPile
+        deck.push(currentHand.pop());
+    }
+}
 function displayintent(entity, x, y, intent, damage){//a bouncing intent icon on enemy's head
     push();
     let bounceSpeed = 0.05; // Adjust the speed of the bounce
@@ -1784,25 +1839,30 @@ class Enemy {
       this.TurnTaken = false;
       this.opacity = 1;
       this.vulnerable = 0;
+      this.image = enemyData[enemy].image;
+      this.animationIndex = 0;
+      this.animationFrames = enemyData[enemy].frames;
     }
     display(){
         push();
         if (this.opacity < 1) {
             tint(255, this.opacity * 255);  // Apply opacity if it's less than 100%
         }
-        if (this.status == 1){
+        /*if (this.status == 1){
             if (this.intent === "incantation"){
                 image(img_cultist_waving[idx_cultist], this.x, this.y);
                 if (idx_cultist >= 130){
                     idx_cultist = 0;
                 }else idx_cultist ++;
             }
-        }else{
-            image(img_cultist_rally[idx_cultist], this.x, this.y);
-            if (idx_cultist >= 261){
-                idx_cultist = 0;
-            }else idx_cultist ++;
-        }
+        }else{*/
+            image(this.image[this.animationIndex], this.x, this.y);
+            //console.log(this.animationIndex);
+            if (this.animationIndex >= this.animationFrames-1){
+                this.animationIndex = 0;
+                //console.log("animation reset");
+            }else this.animationIndex ++;
+        //}
         pop();
         displayHPbar(this,this.x+100, this.y+330, this.maxhp);
         displayintent(this,this.x+100, this.y-20,this.intent,this.damage);
