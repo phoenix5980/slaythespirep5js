@@ -31,6 +31,7 @@ let idx_ironclad = 0;
 let img_ironclad_corpse;
 let img_cultist_rally = [];
 let img_cultist_waving = [];
+let img_jawworm = [];
 let img_strike;
 let img_defend;
 let img_bash;
@@ -73,6 +74,7 @@ let img_tipt1;
 let img_tipt2;
 let img_tipt3;
 let deck = [];
+let deckInitialized = false;
 let drawPile = deck;
 let discardPile = [];
 let currentHand = [];
@@ -132,6 +134,8 @@ let bubbleText = "";
 let gameover = false;
 let neowEvent;
 let goldenShrineEvent;
+let theClericEvent;
+let bigFishEvent;
 let eventData;
 let isCardBeingPlayed = false;
 let eventEnabled = true;
@@ -153,6 +157,11 @@ let clickCooldown = 0;
 let selectedNodes = [];
 let currentPlayerNode = null;
 let clicked = false;
+let eventTransitionActive = false;
+let eventTransitionStartTime = 0;
+const eventTransitionDuration = 1000;
+let eventNo = 0;
+
 
 const bossPosition = {x: 960, y: 400};
 const floorHeight = 150;
@@ -175,7 +184,7 @@ ShopRoom: "Merchant",
 TreasureRoom: "Treasure",
 RestRoom: "Rest",
 MonsterRoom: "Enemy",
-EliteRoom: "Elite"
+MonsterRoomElite: "Elite"
 };
 const cardData = {
     "Strike": {type: "Attack", damage: 6, block: 0, description: "Deal 6 damage.", cost: 1, effect: null},
@@ -186,16 +195,16 @@ const cardData = {
     // Add more cards here
   };
 const enemyData = {
-    "Cultist": {name: "Cultist", maxhp: 48, basicdamage: 6, strength: 0, block: 0, weak: 0, intent: "attack", status: 0, damage: 6, width:340, height:340, image: img_cultist_rally, frames:262},
-    "Jaw Worm": {name: "Jaw Worm", maxhp: 40, basicdamage: 11, strength: 0, block: 0, weak: 0, intent: "attack", status: 0, damage: 6, width:340, height:340},
+    "Cultist": {name: "Cultist", maxhp:48, basicdamage: 6, strength: 0, block: 0, weak: 0, intent: "attack", status: 0, damage: 6, width:340, height:340, image: img_cultist_rally, frames:262},
+    "Jaw Worm": {name: "Jaw Worm", maxhp: 40, basicdamage: 11, strength: 0, block: 0, weak: 0, intent: "attack", status: 0, damage: 6, width:340, height:340, image: img_jawworm, frames:94},
     "Red Louse": {name: "Red Louse", maxhp: 10, basicdamage: 5, strength: 0, block: 0, weak: 0, intent: "attack", status: 0, damage: 6, width:340, height:340},
     "Green Louse": {name: "Green Louse", maxhp: 11, basicdamage: 5, strength: 0, block: 0, weak: 0, intent: "attack", status: 0, damage: 6, width:340, height:340},
     "Acid Slime": {name: "Acid Slime", maxhp: 8, basicdamage: 3, strength: 0, block: 0, weak: 0, intent: "attack", status: 0, damage: 6, width:340, height:340},
     "Spike Slime": {name: "Spike Slime", maxhp: 10, basicdamage: 5, strength: 0, block: 0, weak: 0, intent: "attack", status: 0, damage: 6, width:340, height:340}
     }
 const act1Encounters = [
-    { name: "Cultist", enemies: ["Cultist"], probability: 1 },
-    { name: "Jaw Worm", enemies: ["Jaw Worm"], probability: 0 },
+    { name: "Cultist", enemies: ["Cultist"], probability: 0.5 },
+    { name: "Jaw Worm", enemies: ["Jaw Worm"], probability: 0.5 },
     { name: "2 Louses", enemies: ["Red Louse"], probability: 0 },//["Red Louse","Green Louse"]
     { name: "small slimes", enemies: ["Acid Slime"], probability: 0}//["Acid Slime","Spike Slime"]
 ];
@@ -236,6 +245,9 @@ function preload() {
     for (let i = 0; i <= 130; i++){
         img_cultist_waving.push(loadImage(`assets/images/PNGs/cultist_waving_131f/${i}.png`));
     }
+    for (let i = 0; i <= 93; i++){
+        img_jawworm.push(loadImage(`assets/images/PNGs/jawworm_94f/${i}.png`));
+    }
     for (let i = 1; i <= 4; i++){
         sfx_GainDefense.push(loadSound(`assets/audio/sfx/GainDefense_RR${i}.ogg`));
     }
@@ -271,7 +283,7 @@ function preload() {
     icons.TreasureRoom = loadImage('assets/images/map/chest.png');
     icons.RestRoom = loadImage('assets/images/map/rest.png');
     icons.MonsterRoom = loadImage('assets/images/map/monster.png');
-    icons.EliteRoom = loadImage('assets/images/map/elite.png');
+    icons.MonsterRoomElite = loadImage('assets/images/map/elite.png');
     bossIcons.heart = loadImage('assets/images/map/boss/heart.png');
     bossIcons.hexaghost = loadImage('assets/images/map/boss/hexaghost.png');
     bossIcons.guardian = loadImage('assets/images/map/boss/guardian.png');
@@ -317,6 +329,8 @@ function loadRemainingAssets() {
     img_proceedButton = loadImage('assets/images/reward/proceedButton.png');
     img_eventPanel = loadImage('assets/images/event/eventPanel.png');
     img_goldShrine = loadImage('assets/images/event/goldShrine.jpg');
+    img_Cleric = loadImage('assets/images/event/cleric.jpg');
+    img_bigFish = loadImage('assets/images/event/fishing.jpg');
     img_enabledButton = loadImage('assets/images/event/enabledButton.png');
     img_disabledButton = loadImage('assets/images/event/disabledButton.png');
     img_block = loadImage('assets/images/combat/block.png');
@@ -360,13 +374,13 @@ function setup() {
         cloudObjects.push(new Cloud(img, random(width), random(height), random([-1, 1])));
     }
     loadRemainingAssets();
+    initializeDeck();
     proceedButtonX = width - 500;
     proceedButtonY = height - 500;
     longMap = createGraphics(mapTop.width, mapTop.height + mapMid.height + mapBot.height);
     longMap.image(mapTop, 0, 0);
     longMap.image(mapMid, 0, mapTop.height);
     longMap.image(mapBot, 0, mapTop.height + mapMid.height);
-    initializeDeck();
     player = new Player(playerX, playerY);
     startBattle();
     goldenShrineEvent = new Event(
@@ -384,6 +398,34 @@ function setup() {
             {text: "You ignore the shrine.", animation: null}
         ],
         img_goldShrine);
+    theClericEvent = new Event(
+        "The Cleric",
+        "Hello friend! I am Cleric! Are you interested in my services?!",
+        [
+          { text: "[Heal]", enabled: true, description: "Lose 35 Gold. Heal 25% of your Max HP", penalty: null, action: () => { money -= 35; player.hp += int(player.maxhp*0.25)  } },
+          { text: "[Purify]", enabled: true, description: "Lose 50 Gold. Remove a card from your deck.", penalty: null, action: () => { money -= 50; choosetoRemove(); } },
+          { text: "[Leave]", enabled: true, description: "Nothing happens.", penalty: null, action: () => { /* Do nothing */ } }
+        ],
+        [
+            {text: "A warm golden light envelops your body and dissipates. 'Have a good day!' Cleric said."},
+            {text: "A cold blue flame envelops your body and dissipates."},
+            {text: "You don't trust Cleric, so you leave.", animation: null}
+        ],
+        img_Cleric);
+    bigFishEvent = new Event(
+        "Big Fish",
+        "As you make your way down a long corridor you see a banana, a donut, and a box",
+        [
+          { text: "[Banana]", enabled: true, description: "Heal 1/3 of your max HP.", penalty: null, action: () => { player.hp += int(player.maxhp*0.33)  } },
+          { text: "[Donut]", enabled: true, description: "Max HP +5.", penalty: null, action: () => { player.maxhp +=5;  } },
+          { text: "[Box]", enabled: true, description: "Receive a Relic.", penalty: "Become Cursed: Regret.", action: () => { getRandomRelic(); } }
+        ],
+        [
+            {text: "You eat the banana. It is nutritious and slightly magical, healing you."},
+            {text: "You eat the donut. It really hits the spot! Your Max HP increases."},
+            {text: "You grab the box. Inside you find a relic!", animation: null}
+        ],
+        img_bigFish);
 }
 
 function draw() {
@@ -406,6 +448,10 @@ function draw() {
         displaySettingsOverlay();
     }
     updateAndDrawSlash();
+    if (gameState != "startSceen" && deckInitialized){
+        displaytopPanel();
+    }
+    console.log(clickCooldown);
 }
 function handleGameState(){
     switch(gameState){
@@ -427,6 +473,10 @@ function handleGameState(){
             displayEventScreen();
             handleEvent();
             break;
+        case "shop":
+            displayShopScreen();
+            handlePurchase();
+            break;
     }
 }
 function handleTurns() {
@@ -441,6 +491,9 @@ function handleTurns() {
             enemyTurnActions();
             break;
     }
+}
+function handlePurchase(){
+    
 }
 function beginTurn() {
     turnNumber++;
@@ -520,7 +573,7 @@ function displayStartScreen() {
 function displayPlayingScreen() {
     background(battleBackground);
     textAlign(LEFT, BASELINE);
-    displaytopPanel();
+    //displaytopPanel();
     titleMusic.stop();
     //playMusic(battleMusic);
     rewardsCollected = false;
@@ -556,9 +609,25 @@ function displayPlayingScreen() {
 function displayEventScreen(){
     noTint();
     background("#7A6A4F");
-    displaytopPanel();
-    goldenShrineEvent.display();
+    if (millis() - eventTransitionStartTime > eventTransitionDuration) {
+        eventTransitionActive = false;
+    }
+    //displaytopPanel();
+    switch(eventNo){
+        case 0:goldenShrineEvent.display(); break;
+        case 1:theClericEvent.display(); break;
+        case 2:bigFishEvent.display(); break;
+    }
+    }
+    
+
+function displayShopScreen(){
+    noTint();
+    background("#7A6A4F");
+    
+    displayShop();
 }
+handlePurchase();
 function displayMapOverlay(){
     noTint();
     // Cover the screen with a semi-transparent background
@@ -567,7 +636,12 @@ function displayMapOverlay(){
     image(longMap, 0, mapY);
     textSize(30);
     noStroke();
-    text("Select a Black Room", width/2, height*7/8);
+    textAlign(CENTER, CENTER);
+    if (floor == 0){
+        text("Select a Black Room", width*3/4, height*9/10);
+    }else{
+        text("Select a Black Room on the path", width*3/5, height*9/10);
+    }
     if (mapData) {
         drawMapPathsAndRooms(mapData);
     }
@@ -793,8 +867,16 @@ function onNodeSelected(node) {
                     floor ++;
                 }
                 break;
+            case "MonsterRoomElite":
+                startBattle();
+                gameState = "battle";
+                toggleMapOverlay();
+                floor ++;
+                break;
             case "EventRoom":
                 gameState = "event";
+                eventTransitionActive = true;
+                eventTransitionStartTime = millis();
                 toggleMapOverlay();
                 floor ++;
                 // Prepare the shop
@@ -953,8 +1035,33 @@ function mousePressed() {
         if (timing === GAME_OVER){
             handleReturntoTitleButton();
         }
+    } else if (gameState === "event"){
+        if (eventTransitionActive) {
+            return; // Ignore clicks during the transition
+        }
+        let optionHeight = img_enabledButton.height;
+        let optionYStart = height / 2 - 100;
+        let optionXStart = width / 2 - 125;
+        let optionWidth = img_enabledButton.width;
+      
+        goldenShrineEvent.options.forEach((option, index) => {
+          let optionY = optionYStart + index * optionHeight;
+      
+          // Check if the mouse click is within the bounds of the option
+          if (
+            mouseX > optionXStart &&
+            mouseX < optionXStart + optionWidth &&
+            mouseY > optionY &&
+            mouseY < optionY + optionHeight
+          ) {
+            // Check if the option is enabled before selecting it
+            if (option.enabled) {
+              goldenShrineEvent.selectOption(index);
+            }
+          }
+        });
     }
-    clickCooldown = 30;
+    clickCooldown = 15;
 }
 function mouseReleased() {
     if (draggingCard) {
@@ -976,29 +1083,7 @@ function mouseReleased() {
     }
     if (clicked){
         clicked = false;
-        if (gameState === "event"){
-            let optionHeight = img_enabledButton.height;
-            let optionYStart = height / 2 + 100;
-            let optionXStart = width / 2 - 125;
-            let optionWidth = img_enabledButton.width;
-          
-            goldenShrineEvent.options.forEach((option, index) => {
-              let optionY = optionYStart + index * optionHeight;
-          
-              // Check if the mouse click is within the bounds of the option
-              if (
-                mouseX > optionXStart &&
-                mouseX < optionXStart + optionWidth &&
-                mouseY > optionY &&
-                mouseY < optionY + optionHeight
-              ) {
-                // Check if the option is enabled before selecting it
-                if (option.enabled) {
-                  goldenShrineEvent.selectOption(index);
-                }
-              }
-            });
-        }
+        
     }
 }
 function mouseIsOver(entity, scaleFactor) {
@@ -1137,6 +1222,7 @@ function initializeDeck() {
     }
     deck.push(new Card(img_bash,"Bash", "Attack"));
     shuffle(deck, true);
+    deckInitialized = true;
 }
 function drawCard() {
     if (deck.length > 0) {
@@ -1147,7 +1233,12 @@ function drawCard() {
         drawCard();
     }
 }
+function choosetoRemove(){
 
+}
+function getRandomRelic(){
+
+}
 function dealCards(numCards) {
     for (let i = 0; i < numCards; i++) {
         if (deck.length === 0) {
@@ -1381,9 +1472,6 @@ function returnToTitle() {
     floor = 1;
     turnNumber = 0;
     initializeDeck();
-    for (let i = 0; i < numofEnemies; i++) {
-        enemies.push(new Enemy("Cultist",enemyX+i*340, enemyY));
-    }
 }
 function drawReturntoTitleButton(){
     push();

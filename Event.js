@@ -31,7 +31,7 @@ class Event {
       imageMode(CORNER);
       this.options.forEach((option, index) => {
         let buttonImage = option.enabled ? img_enabledButton : img_disabledButton;
-        let optionButtonY = height / 2 + 100 + index * 80;
+        let optionButtonY = height / 2 - 100 + index * 80;
         image(buttonImage, width / 2 - 125, optionButtonY);
         strokeWeight(4);
         fill(255);
@@ -78,6 +78,9 @@ class Event {
       }
       leaveEvent() {
         if (!this.hasLeft) { // Check if the leave event has already been triggered
+          eventNo++;
+          this.selectedOptionIndex = -1; // Reset the selected option index
+          eventTransitionActive = false;
           gameState = "map";
           let currentFloorY = calculateY(floor);
           mapY = height - currentFloorY - floorHeight*2;
