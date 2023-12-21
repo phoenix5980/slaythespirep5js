@@ -413,17 +413,17 @@ function setup() {
         ],
         img_Cleric);
     bigFishEvent = new Event(
-        "Big Fish",
-        "As you make your way down a long corridor you see a banana, a donut, and a box",
+        "Shop",
+        "Welcome to the shop! Currently your offers are a banana, a donut, and a box",
         [
-          { text: "[Banana]", enabled: true, description: "Heal 1/3 of your max HP.", penalty: null, action: () => { player.hp += int(player.maxhp*0.33)  } },
-          { text: "[Donut]", enabled: true, description: "Max HP +5.", penalty: null, action: () => { player.maxhp +=5;  } },
-          { text: "[Box]", enabled: true, description: "Receive a Relic.", penalty: "Become Cursed: Regret.", action: () => { getRandomRelic(); } }
+          { text: "[Banana]", enabled: true, description: "50 Gold. Heal 1/3 of your max HP.", penalty: null, action: () => { money -= 50; player.hp += int(player.maxhp*0.33)  } },
+          { text: "[Donut]", enabled: true, description: "75 Gold. Max HP +10.", penalty: null, action: () => { player.hp +=10; player.maxhp +=10;  } },
+          { text: "[Box]", enabled: true, description: "100 Gold. Receive a Relic.", penalty: null, action: () => { getRandomRelic(); } }
         ],
         [
-            {text: "You eat the banana. It is nutritious and slightly magical, healing you."},
-            {text: "You eat the donut. It really hits the spot! Your Max HP increases."},
-            {text: "You grab the box. Inside you find a relic!", animation: null}
+            {text: "You bought the banana. It is nutritious and slightly magical, healing you."},
+            {text: "You bought the donut. It really hits the spot! Your Max HP increases."},
+            {text: "You bought the box. Inside you find a relic!", animation: null}
         ],
         img_bigFish);
 }
@@ -624,8 +624,10 @@ function displayEventScreen(){
 function displayShopScreen(){
     noTint();
     background("#7A6A4F");
-    
-    displayShop();
+    if (millis() - eventTransitionStartTime > eventTransitionDuration) {
+        eventTransitionActive = false;
+    }
+    bigFishEvent.display();
 }
 handlePurchase();
 function displayMapOverlay(){
@@ -881,6 +883,13 @@ function onNodeSelected(node) {
                 floor ++;
                 // Prepare the shop
                 break;
+            case "ShopRoom":
+                gameState = "shop";
+                //gameState = "event";
+                eventTransitionActive = true;
+                eventTransitionStartTime = millis();
+                toggleMapOverlay();
+                floor ++;
             // Handle other room types
         }
     }
