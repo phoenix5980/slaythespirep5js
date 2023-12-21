@@ -106,6 +106,7 @@ let currentFloor = 1;
 let cards = [];
 let rewards = [];
 let options = [];
+let currentEvent = null;
 let gameState = "startScreen";
 //let gameState = "tutorial";
 //let gameState = "battle";
@@ -274,6 +275,7 @@ function preload() {
     //sfx_PlayerTurn = loadSound('assets/audio/sfx/PlayerTurn_1.ogg');
     sfx_Victory = loadSound('assets/audio/sfx/Victory.ogg');
     sfx_Gold = loadSound('assets/audio/sfx/Gold.ogg');
+    sfx_buff = loadSound('assets/audio/sfx/Buff.ogg');
     mapTop = loadImage('assets/images/map/mapTop.png');
     mapMid = loadImage('assets/images/map/mapMid.png');
     mapBot = loadImage('assets/images/map/mapBot.png');
@@ -402,7 +404,7 @@ function setup() {
         "The Cleric",
         "Hello friend! I am Cleric! Are you interested in my services?!",
         [
-          { text: "[Heal]", enabled: true, description: "Lose 35 Gold. Heal 25% of your Max HP", penalty: null, action: () => { money -= 35; player.hp += int(player.maxhp*0.25)  } },
+          { text: "[Heal]", enabled: true, description: "Lose 35 Gold. Heal 25% of your Max HP", penalty: null, action: () => { money -= 35; healHP(int(player.maxhp*0.25));sfx_buff.play();  } },
           { text: "[Purify]", enabled: true, description: "Lose 50 Gold. Remove a card from your deck.", penalty: null, action: () => { money -= 50; choosetoRemove(); } },
           { text: "[Leave]", enabled: true, description: "Nothing happens.", penalty: null, action: () => { /* Do nothing */ } }
         ],
@@ -416,9 +418,9 @@ function setup() {
         "Shop",
         "Welcome to the shop! Currently your offers are a banana, a donut, and a box",
         [
-          { text: "[Banana]", enabled: true, description: "50 Gold. Heal 1/3 of your max HP.", penalty: null, action: () => { money -= 50; player.hp += int(player.maxhp*0.33)  } },
-          { text: "[Donut]", enabled: true, description: "75 Gold. Max HP +10.", penalty: null, action: () => { player.hp +=10; player.maxhp +=10;  } },
-          { text: "[Box]", enabled: true, description: "100 Gold. Receive a Relic.", penalty: null, action: () => { getRandomRelic(); } }
+          { text: "[Banana]", enabled: true, description: "50 Gold. Heal 1/3 of your max HP.", penalty: null, action: () => { money -= 50; healHP(int(player.maxhp*0.33));sfx_buff.play();  } },
+          { text: "[Donut]", enabled: true, description: "75 Gold. Max HP +10.", penalty: null, action: () => { money -= 75; addMaxHP(10);sfx_buff.play();  } },
+          { text: "[Box]", enabled: true, description: "100 Gold. Receive a Relic.", penalty: null, action: () => { money -= 100; getRandomRelic(); } }
         ],
         [
             {text: "You bought the banana. It is nutritious and slightly magical, healing you."},
@@ -519,7 +521,17 @@ function playerTurnActions() {
     text("Mouse over Player= "+mouseIsOver(player,1), 300, 250);
     text("Mouse over Enemy= "+mouseIsOver(enemies,1), 300, 300);*/
 }
-
+function healHP(healAmount){
+    if (player.hp+healAmount < player.maxhp){
+        player.hp += healAmount;
+    }else{
+        player.hp = player.maxhp;
+    }
+}
+function addMaxHP(addAmount){
+    player.maxhp += addAmount;
+    player.hp += addAmount;
+}
 function enemyTurnActions() {
     showTurnStartAnimation(timing);
     for (enemy of enemies){
@@ -614,10 +626,11 @@ function displayEventScreen(){
     }
     //displaytopPanel();
     switch(eventNo){
-        case 0:goldenShrineEvent.display(); break;
-        case 1:theClericEvent.display(); break;
-        case 2:bigFishEvent.display(); break;
+        case 0:currentEvent = goldenShrineEvent; break;
+        case 1:currentEvent = theClericEvent; break;
+        case 2:currentEvent = bigFishEvent; break;
     }
+    currentEvent.display();
     }
     
 
@@ -627,7 +640,8 @@ function displayShopScreen(){
     if (millis() - eventTransitionStartTime > eventTransitionDuration) {
         eventTransitionActive = false;
     }
-    bigFishEvent.display();
+    currentEvent = bigFishEvent;
+    currentEvent.display();
 }
 handlePurchase();
 function displayMapOverlay(){
@@ -1055,7 +1069,7 @@ function mousePressed() {
             mouseY < optionY + optionHeight
           ) {// Check if the option is enabled before selecting it
             if (option.enabled) {
-              goldenShrineEvent.selectOption(index);
+              currentEvent.selectOption(index);
             }
           }
         });

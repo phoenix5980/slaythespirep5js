@@ -77,7 +77,7 @@ class Event {
         }
       }
       leaveEvent() {
-        if (!this.hasLeft) { // Check if the leave event has already been triggered
+        //if (!this.hasLeft) { // Check if the leave event has already been triggered
           eventNo++;
           this.selectedOptionIndex = -1; // Reset the selected option index
           eventTransitionActive = false;
@@ -85,7 +85,7 @@ class Event {
           let currentFloorY = calculateY(floor);
           mapY = height - currentFloorY - floorHeight*2;
           this.hasLeft = true; // Ensure that the leave event isn't triggered again
-        }
+        //}
     }
     displayFeedback() {
         //console.log("Displaying feedback for the selected option.");
