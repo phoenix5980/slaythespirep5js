@@ -123,7 +123,7 @@ let turnNumber = 0;
 let attackAnimationDelay = 200;
 let currentAttackingEnemyIndex = 0;
 let attackDelayTimer = 0;
-let attackDelayDuration = 60; // Number of frames to wait between attacks. Adjust as needed.
+let attackDelayDuration = 60; // Number of frames to wait between attacks
 let slashAnimationTimer = 0;
 let slashAnimationDuration = 15; // Number of frames the slash will be visible
 let allrewardsCollected = false;
@@ -367,7 +367,7 @@ function setup() {
     outputVolume(0.2);
     if (essentialAssetsLoaded) {
         displayStartScreen("Loading...");
-        // Load the remaining assets in a non-blocking manner
+        // Load the remaining assets
     }
     for (let i = 0; i < 2; i++) {
         let img = random(cloudImages);
@@ -698,8 +698,7 @@ function drawSelectedNodeCircle(x, y) {
     pop();
 }
 
-// Example of how to add a node to the selectedNodes list
-// This needs to be triggered by some event, like a mouse click
+
 function selectNode(node) {
     if (!isSelectedNode(node)) {
         selectedNodes.push(node);
@@ -709,10 +708,7 @@ function isSelectedNode(node) {
     return selectedNodes.some(selected => selected.x === node.x && selected.y === node.y);
 }
 function canSelectNode(node) {
-    // Allow selection of the first node (starting position)
     if (currentPlayerNode === null) return true;
-
-    // Check if 'node' is connected to 'currentPlayerNode'
     return mapData.edges.some(edge => 
         (edge.src_x === currentPlayerNode.x && edge.src_y === currentPlayerNode.y && edge.dst_x === node.x && edge.dst_y === node.y) ||
         (edge.dst_x === currentPlayerNode.x && edge.dst_y === currentPlayerNode.y && edge.src_x === node.x && edge.src_y === node.y)
@@ -727,7 +723,7 @@ function getRandomEncounter(encounters) {
         }
         random -= encounter.probability;
     }
-    return null; // In case something goes wrong
+    return null;
 }
 function startBattle() {
     timing = TURN_START;
@@ -736,8 +732,6 @@ function startBattle() {
     for (let enemyType of encounter.enemies) {
         console.log(enemyType);
         enemies.push(new Enemy(enemyType,enemyX, enemyY));//enemyX+i*340
-        // Spawn enemies based on the encounter
-        // Use appropriate positions (x, y) for each enemy
     }
 }
 
@@ -791,7 +785,7 @@ function calculateY(gridY) {
     return 2800 - gridY * floorHeight;
 }         
 
-// Helper function to get the color based on the room class
+// Unused
 function getRoomColor(roomClass) {
     switch (roomClass) {
         case 'MonsterRoom':
@@ -854,7 +848,7 @@ function hideSettingsOverlay() {
 }
 function onNodeSelected(node) {
     if (canSelectNode(node)) {
-        selectNode(node); // Add to selectedNodes list if not already there
+        selectNode(node);
         currentPlayerNode = node; // Update the player's current position
         console.log("Node selected:", node);
         switch (node.class) {
@@ -881,7 +875,6 @@ function onNodeSelected(node) {
                 eventTransitionStartTime = millis();
                 toggleMapOverlay();
                 floor ++;
-                // Prepare the shop
                 break;
             case "ShopRoom":
                 gameState = "shop";
@@ -890,7 +883,6 @@ function onNodeSelected(node) {
                 eventTransitionStartTime = millis();
                 toggleMapOverlay();
                 floor ++;
-            // Handle other room types
         }
     }
 }
@@ -947,7 +939,7 @@ function showTutorial(){
 }
 function mousePressed() {
     if (clickCooldown > 0) {
-        return; // Ignore the click because cooldown is active
+        return;
     }
     clicked = true;
     if (gameState !== "startScreen") {
@@ -1055,15 +1047,13 @@ function mousePressed() {
       
         goldenShrineEvent.options.forEach((option, index) => {
           let optionY = optionYStart + index * optionHeight;
-      
-          // Check if the mouse click is within the bounds of the option
+
           if (
             mouseX > optionXStart &&
             mouseX < optionXStart + optionWidth &&
             mouseY > optionY &&
             mouseY < optionY + optionHeight
-          ) {
-            // Check if the option is enabled before selecting it
+          ) {// Check if the option is enabled before selecting it
             if (option.enabled) {
               goldenShrineEvent.selectOption(index);
             }
@@ -1718,13 +1708,11 @@ function handleEndTurnButton() {
     }
     let buttonWidth = endTurnButton.width;
     let buttonHeight = endTurnButton.height;
-    // Check if the mouse is over the button
     if (mouseX >= EndTurnButtonX && mouseX <= EndTurnButtonX + buttonWidth &&
         mouseY >= EndTurnButtonY && mouseY <= EndTurnButtonY + buttonHeight) {
-        // Check if the button is clicked
         if (mouseIsPressed) {
             discardcurrentHand();
-            timing = ENEMY_TURN; // End the player's turn
+            timing = ENEMY_TURN;
         }
     }
 }
@@ -1943,7 +1931,7 @@ class Enemy {
     display(){
         push();
         if (this.opacity < 1) {
-            tint(255, this.opacity * 255);  // Apply opacity if it's less than 100%
+            tint(255, this.opacity * 255);  
         }
         /*if (this.status == 1){
             if (this.intent === "incantation"){
@@ -1977,20 +1965,18 @@ class Enemy {
             clearInterval(fadeInterval);  // Stop the interval when fully transparent
             this.opacity = 0;  // Ensure opacity doesn't go below 0
         }
-        }, 500); // Adjust time as needed for smoother animation
+        }, 500); 
     }
     getHit() {
-        if (!this.beingHit) { // Only apply the effect if the entity isn't already being hit
+        if (!this.beingHit) { 
             this.beingHit = true;
-            
-            // Apply push-back effect
-            this.x += 50; // Adjust the push-back distance as needed
-
-            // After a delay, return the entity to its original position
+            // push-back effect
+            this.x += 50;
+            // After a delay, return to its original position
             setTimeout(() => {
                 this.x = this.originalX;
                 this.beingHit = false;
-            }, 300); // Adjust the delay as needed
+            }, 300); 
         }
     }
     addBlock(block){
@@ -2014,12 +2000,10 @@ class Enemy {
         } else {
           this.attack(player);
           this.status = 0;
-          // The intent remains attack for subsequent turns
         }
        //}
     // Applying the Ritual buff at the end of the turn
         this.strength += this.ritualLayers;
-        
     }
   
     incantation() {
@@ -2027,17 +2011,12 @@ class Enemy {
     }
   
     attack(player) {
-    
-        // Play the enemy attack animation
         enemyAttackAnimation(this, player);
         // Temporary damage calculation for this attack only
-
         let damageThisTurn = (this.basicdamage + this.strength) - player.block;
         if (player.vulnerable > 0) {
             damageThisTurn =  Math.floor((this.basicdamage + this.strength) * 1.5) - player.block;
         }
-    
-        // Ensure damage does not go below 0
         damageThisTurn = Math.max(0, damageThisTurn);
         if (player.block>0){
             if (damageThisTurn == 0){
