@@ -82,9 +82,10 @@ let img_eventPanel;
 let img_enabledButton;
 let img_disabledButton;
 let img_block;
-let img_cancelButton;
+let img_returnButton;
 let img_countCircle;
-let img_deckButton;
+//let img_deckButton;
+let img_drawPileButton;
 let img_discardButton;
 let img_vulnerable;
 let img_tipt1;
@@ -93,11 +94,14 @@ let img_tipt3;
 let img_shoulder;
 let img_fire1;
 let img_fire2;
+let img_normalCardReward;
+let img_bossCardReward;
 let deck = [];
 let deckInitialized = false;
-let drawPile = deck;
+let drawPile = [];
 let discardPile = [];
 let currentHand = [];
+let exhaustPile = [];
 let HandSize = 5;
 let potions = [];
 let relics = ["BurningBlood"];
@@ -166,6 +170,8 @@ let isCardBeingPlayed = false;
 let eventEnabled = true;
 let showDiscardOverlay = false;
 let showDrawPileOverlay = false;
+let showCurrentHand = false;
+let showReturnButton = false;
 let showMapOverlay = false, showDeckOverlay = false, showSettingsOverlay = false, nodeWidth = 100, nodeHeight = 100, xOffset=600, yOffset=600;
 let mapTop, mapMid, mapBot; // Variables to hold the map images
 let mapY = 128; // Y position of the map (for vertical scrolling)
@@ -197,12 +203,16 @@ let turnStartText = "";
 let turnStartTime = 0;
 const bossPosition = {x: 960, y: 400};
 const floorHeight = 150;
+const drawPileButtonX = 0;
+const drawPileButtonY = 950;
+const drawPileButtonWidth = 128;
+const drawPileButtonHeight = 128;
 const discardButtonX = 1800;
 const discardButtonY = 950;
 const discardButtonWidth = 128;
 const discardButtonHeight = 128;
-const cancelButtonX = 0 ;
-const cancelButtonY = 880;
+const returnButtonX = 0 ;
+const returnButtonY = 880;
 const countCircleDiameter = 128;
 const EndTurnButtonX = 1550;
 const EndTurnButtonY = 850;
@@ -218,14 +228,7 @@ RestRoom: "Rest",
 MonsterRoom: "Enemy",
 MonsterRoomElite: "Elite"
 };
-const cardData = {
-    "Strike": {type: "Attack", damage: 6, block: 0, description: "Deal 6 damage.", cost: 1, effect: null, rarity:"Starter", upgrade:{damage: 9,description: "Deal 9 damage."}},
-    "Defend": {type: "Skill", damage: 0, block: 5, description: "Gain 5 Block.", cost: 1, effect: (player)=>{player.addBlock(5);}, rarity:"Starter", upgrade:{effect: (player)=>{player.addBlock(8);},description: "Gain 8 Block"}},
-    "Bash": {type: "Attack", damage: 8, block: 0, description: "Deal 8 damage.          Apply 2 Vulnerable", cost: 2, effect:(enemy)=>  {enemy.addVulnerable(2);}, rarity:"Starter", upgrade:{damage:10, effect: (player)=>{enemy.addVulnerable(3);},description: "Deal 10 damage.          Apply 3 Vulnerable"} },
-    "Clash": {type: "Attack", damage: 14, block: 0, description: "Can only be played if every card in your hand is an Attack. Deal 14 damage.", cost: 0, effect: null, rarity:"Common", upgrade:{damage: 18,description: "Can only be played if every card in your hand is an Attack. Deal 18 damage."}},
-    "Anger": {type: "Attack", damage: 6, block: 0, description: "Deal 6 damage. Add a copy of this card into your discard pile.", cost: 0, effect: (enemy)=>{enemy.addCardIntoDiscard(img_anger,"Anger","Attack",false);}, rarity:"Common", upgrade:{damage: 8, effect: (enemy)=>{enemy.addCardIntoDiscard(img_anger,"Anger","Attack",true);},description: "Deal 8 damage. Add a copy of this card into your discard pile."}},
-    "Bandage": {type: "Skill", damage: 0, block: 0, description: "Heal 4 HP.", cost: 0, effect: (player)=>{player.healHP(4);}, rarity:"Common", upgrade:{effect: (player)=>{player.healHP(6);},description: "Heal 6 HP."}},
-};
+let cardData;
 const enemyData = {
     "Cultist": {name: "Cultist", maxhp:48, basicdamage: 6, strength: 0, block: 0, weak: 0, intent: "attack", status: 0, width:340, height:340, image: img_cultist_rally, frames:262, altimage: img_cultist_waving, altframes:131},
     "Jaw Worm": {name: "Jaw Worm", maxhp: 40, basicdamage: 8, strength: 0, block: 0, weak: 0, intent: "attack", status: 0, width:340, height:340, image: img_jawworm, frames:94, altimage: img_jawworm, altframes:1},
@@ -237,8 +240,8 @@ const enemyData = {
     "Gremlin Nob": {name: "Gremlin Nob", maxhp: 82, basicdamage: 14, strength: 0, block: 0, weak: 0, intent: "buff", status: 0, width:340, height:340, image: img_gremlinnob, frames:1},
     }
 const act1first3Encounters = [
-    { name: "Cultist", enemies: ["Cultist"], probability: 0.75 },
-    { name: "Jaw Worm", enemies: ["Jaw Worm"], probability: 0.25 },
+    { name: "Cultist", enemies: ["Cultist"], probability: 0.75, rewards: [{type: "gold", amount: 20}, {type: "card", cardName: "Anger"}]  },
+    { name: "Jaw Worm", enemies: ["Jaw Worm"], probability: 0.25, rewards: [{type: "gold", amount: 20}, {type: "card", cardName: "Bandage"}] },
     { name: "2 Louses", enemies: ["Red Louse"], probability: 0 },//["Red Louse","Green Louse"]
     { name: "small slimes", enemies: ["Acid Slime"], probability: 0}//["Acid Slime","Spike Slime"]
 ];
@@ -341,6 +344,12 @@ function preload() {
     bossIcons.timeeater = loadImage('assets/images/map/boss/timeeater.png');
     bossIcons.donu = loadImage('assets/images/map/boss/donu.png');
     battleBackground = loadImage('assets/images/battlebackground.png');
+    img_strike = loadImage('assets/images/cards/strike.png');
+    img_defend = loadImage('assets/images/cards/defend.png');
+    img_bash = loadImage('assets/images/cards/bash.png');
+    img_clash = loadImage('assets/images/cards/clash.png');
+    img_anger = loadImage('assets/images/cards/anger.png');
+    img_bandage = loadImage('assets/images/cards/bandage.png');
     essentialAssetsLoaded = true;
     console.log("Essential assets loaded");
 }
@@ -358,12 +367,6 @@ function loadRemainingAssets() {
     red_cost = loadImage('assets/images/cards/red_cost.png');
     ribbon = loadImage('assets/images/cards/ribbon.png');
     frame = loadImage('assets/images/cards/frame.png');
-    img_strike = loadImage('assets/images/cards/strike.png');
-    img_defend = loadImage('assets/images/cards/defend.png');
-    img_bash = loadImage('assets/images/cards/bash.png');
-    img_clash = loadImage('assets/images/cards/clash.png');
-    img_anger = loadImage('assets/images/cards/anger.png');
-    img_bandage = loadImage('assets/images/cards/bandage.png');
     img_arrowhead = loadImage('assets/images/combat/reticleArrow.png');
     img_arrowbody = loadImage('assets/images/combat/reticleBlock.png');
     img_framecorner = loadImage('assets/images/combat/reticleCorner.png');
@@ -384,9 +387,9 @@ function loadRemainingAssets() {
     img_disabledButton = loadImage('assets/images/event/disabledButton.png');
     img_block = loadImage('assets/images/combat/block.png');
     img_potion_placeholder = loadImage('assets/images/potion/potion_placeholder.png');
-    img_cancelButton = loadImage('assets/images/topPanel/cancelButton.png');
+    img_returnButton = loadImage('assets/images/topPanel/cancelButton.png');
     img_countCircle = loadImage('assets/images/topPanel/countCircle.png');
-    img_deckButton = loadImage('assets/images/topPanel/deckButton.png');
+    img_drawPileButton = loadImage('assets/images/topPanel/deckButton.png');
     img_discardButton = loadImage('assets/images/topPanel/discardButton.png');
     img_map = loadImage('assets/images/topPanel/map.png');
     img_deck = loadImage('assets/images/topPanel/deck.png');
@@ -401,6 +404,8 @@ function loadRemainingAssets() {
     img_campfire = loadImage('assets/images/campfire.png');
     img_smith = loadImage('assets/images/campfire/smith.png');
     img_sleep = loadImage('assets/images/campfire/sleep.png');
+    img_bossCardReward = loadImage('assets/images/reward/bossCardReward.png');
+    img_normalCardReward = loadImage('assets/images/reward/normalCardReward.png');
     mapData1 = loadJSON('assets/maps/673465884448_Act1.json');
     mapData2 = loadJSON('assets/maps/123456789_Act1.json');
     
@@ -431,6 +436,14 @@ function setup() {
         cloudObjects.push(new Cloud(img, random(width), random(height), random([-1, 1])));
     }
     loadRemainingAssets();
+    cardData = {
+        "Strike": {type: "Attack", damage: 6, block: 0, description: "Deal 6 damage.", cost: 1, effect: null, rarity:"Starter", upgrade:{damage: 9,description: "Deal 9 damage."}, image: img_strike},
+        "Defend": {type: "Skill", damage: 0, block: 5, description: "Gain 5 Block.", cost: 1, effect: (player)=>{player.addBlock(5);}, rarity:"Starter", upgrade:{effect: (player)=>{player.addBlock(8);},description: "Gain 8 Block"}, image: img_defend},
+        "Bash": {type: "Attack", damage: 8, block: 0, description: "Deal 8 damage.          Apply 2 Vulnerable", cost: 2, effect:(enemy)=>  {enemy.addVulnerable(2);}, rarity:"Starter", upgrade:{damage:10, effect: (player)=>{enemy.addVulnerable(3);},description: "Deal 10 damage.          Apply 3 Vulnerable"}, image: img_bash },
+        "Clash": {type: "Attack", damage: 14, block: 0, description: "Can only be played if every card in your hand is an Attack. Deal 14 damage.", cost: 0, effect: null, rarity:"Common", upgrade:{damage: 18,description: "Can only be played if every card in your hand is an Attack. Deal 18 damage."},image: img_clash},
+        "Anger": {type: "Attack", damage: 6, block: 0, description: "Deal 6 damage. Add a copy of this card into your discard pile.", cost: 0, effect: (enemy)=>{enemy.addCardIntoDiscard(img_anger,"Anger","Attack",false);}, rarity:"Common", upgrade:{damage: 8, effect: (enemy)=>{enemy.addCardIntoDiscard(img_anger,"Anger","Attack",true);},description: "Deal 8 damage. Add a copy of this card into your discard pile."}, image: img_anger},
+        "Bandage": {type: "Skill", damage: 0, block: 0, description: "Heal 4 HP.", cost: 0, effect: (player)=>{player.healHP(4);}, rarity:"Common", upgrade:{effect: (player)=>{player.healHP(6);},description: "Heal 6 HP."}, image: img_bandage},
+    };
     if (Math.random() < 0.5) {
         seed = seed1;
         mapData = mapData1;
@@ -511,6 +524,15 @@ function draw() {
     if (showSettingsOverlay) {
         displaySettingsOverlay();
     }
+    if (showMapOverlay || showDeckOverlay || showSettingsOverlay || 
+        showDrawPileOverlay || showDiscardOverlay) {
+            if(!firstTimePlay){
+                showReturnButton = true;
+                displayReturnButton();
+            }
+    }else{
+        showReturnButton = false;
+    }
     updateAndDrawSlash();
     if (gameState != "startSceen" && deckInitialized){
         displaytopPanel();
@@ -590,7 +612,7 @@ function beginTurn() {
 }
 
 function playerTurnActions() {
-    if (!showTurnStartAnimation){
+    if (!showTurnStartAnimation && showCurrentHand) {
         handleCardDragging();
     }
     /*text("MouseX "+int(mouseX), 200, 150);
@@ -682,12 +704,15 @@ function displayPlayingScreen() {
         enemy.update();
     }
     drawDiscardButton();
-    drawDiscardOverlay();
-    if (!showDiscardOverlay){
-    if (timing === PLAYER_TURN) {
-        displayCurrentHand();
-        drawSpeechBubble();
-    }
+    drawDrawPileButton();
+    displayDrawPileOverlay();
+    displayDiscardOverlay();
+    if ((!showDiscardOverlay) && (!showDrawPileOverlay) && (!showSettingsOverlay) && (!showDeckOverlay) && (!showMapOverlay)){
+        if (timing === PLAYER_TURN) {
+            showCurrentHand = true;   
+            displayCurrentHand();
+            drawSpeechBubble();
+        }
         displayEndTurnButton();
     }
     if (timing === REWARD_SCREEN){
@@ -916,15 +941,26 @@ function getRandomEncounter(encounters) {
     return null;
 }
 function startBattle(encounters) {
+    cleanUpPiles();
+    drawPile = [...deck]; //shallow copy
+    shuffle(drawPile, true);
     timing = TURN_START;
     const encounter = getRandomEncounter(encounters);
+    rewards = [...encounter.rewards];
     enemies = []; // Clear existing enemies
     for (let enemyType of encounter.enemies) {
         console.log(enemyType);
         enemies.push(new Enemy(enemyType,enemyX, enemyY));//enemyX+i*340
     }
+    console.log("Battle rewards set:", rewards);
 }
 
+function cleanUpPiles() {
+    drawPile = [];
+    discardPile = [];
+    currentHand = [];
+    exhaustPile = [];
+}
 function drawMapPathsAndRooms(mapData) {
     push();
     stroke(100);
@@ -1019,26 +1055,7 @@ function playMusic(music) {
 function isInside(x, y, button) {
     return x > button.x && x < button.x + button.width && y > button.y && y < button.y + button.height;
 }
-function toggleMapOverlay() {
-    let currentFloorY = calculateY(floor);
-    mapY = height - currentFloorY - floorHeight*2;
-    showMapOverlay = !showMapOverlay;
-}
-function toggleDeckOverlay() {
-    showDeckOverlay = !showDeckOverlay;
-}
-function toggleSettingsOverlay() {
-    showSettingsOverlay = !showSettingsOverlay;
-}
-function hideMapOverlay() {
-    showMapOverlay = false;
-}
-function hideDeckOverlay() {
-    showDeckOverlay = false;
-}
-function hideSettingsOverlay() {
-    showSettingsOverlay = false;
-}
+
 function onNodeSelected(node) {
     if (canSelectNode(node)) {
         selectNode(node);
@@ -1061,7 +1078,7 @@ function onNodeSelected(node) {
                 }
                 break;
             case "MonsterRoomElite":
-                startBattle(act1first3Encounters);
+                startBattle(act1Elites);
                 gameState = "battle";
                 toggleMapOverlay();
                 floor ++;
@@ -1189,53 +1206,20 @@ function mousePressed() {
     } else if (gameState ==="tutorial"){
         handleProceedButton();
     } else if (gameState === "battle"){
-        // If a card is clicked, select it and highlight it
+        // If a card is clicked, select it and highlight it    
+        if (isReturnButtonClicked(mouseX, mouseY)) {
+            hideAllOverlays();
+            return; // Exit early to prevent other click actions
+        }
         if (timing === PLAYER_TURN) {
-            if (mouseX > discardButtonX && mouseX < discardButtonX + discardButtonWidth &&
-                mouseY > discardButtonY && mouseY < discardButtonY + discardButtonHeight) {
-              toggleDiscardOverlay();
-            } else if (showDiscardOverlay) {
-              // Check if the mouse click is within the bounds of the return button
-              if (mouseX > cancelButtonX && mouseX < cancelButtonX + img_cancelButton.width && mouseY > cancelButtonY && mouseY < cancelButtonY + img_cancelButton.height) {
-                toggleDiscardOverlay();
-              }
-            } 
-        for (let card of currentHand) {
-            if (mouseIsOver(card,cardScale)) {
-                card.isSelected = true; 
-                selectedCard = card;
-                //console.log("Mouse pressed");
-                return; 
-            } else {
-                card.isSelected = false; 
-            }
+            handleDrawPileClick();
+            handleDiscardPileClick();
+            handleCardClick();
+            handleEntityClick();
         }
-        // If an entity is clicked and a card is selected, try to play the card
-        if (selectedCard) {
-            for (let enemy of enemies) {
-                if (mouseIsOver(enemy,1) && selectedCard.type === "Attack") {
-                    console.log("Enemy is targeted");
-                    enemy.isTargeted = true; // Highlight the targeted enemy
-                    //playCard(selectedCard, enemy);
-                } else if (mouseIsOver(player,1) && selectedCard.type !== "Attack") {
-                    player.isTargeted = true; // Highlight the targeted player
-                    //playCard(selectedCard, player);
-                }
-            }
-            selectedCard.isSelected = false; // Unhighlight the card after trying to play it
-            selectedCard = null;
-        } else {
-            // If no card is selected, unhighlight the entities
-            for (let enemy of enemies) {
-                enemy.isTargeted = false;
-            }
-            player.isTargeted = false;
-        }
-
-    }
         if (timing === REWARD_SCREEN){
             player.energy = maxEnergy;
-            returncurrentHand();
+            //returncurrentHand();
             handleRewardClick();
             handleProceedButton();
         }
@@ -1273,12 +1257,12 @@ function mouseReleased() {
     if (draggingCard) {
         for (let enemy of enemies) {
             if (mouseIsOver(enemy,1) && draggingCard.type === "Attack") {
-                console.log(draggingCard);
+                //console.log(draggingCard);
                 playCard(draggingCard, enemy);
             }
         }
         if (mouseIsOver(player,1) && draggingCard.type !== "Attack") {
-            console.log(draggingCard);
+            //console.log(draggingCard);
             playCard(draggingCard, player);
         }
         draggingCard.isSelected = false;
@@ -1423,25 +1407,25 @@ function drawFormattedText(x, y, formattedText) {
   
 function initializeDeck() {
     for (let i = 0; i < 5; i++) {
-        deck.push(new Card(img_strike,"Strike", "Attack",false));
+        deck.push(newCard("Strike", false));
     }
     for (let i = 0; i < 4; i++) {
-        deck.push(new Card(img_defend,"Defend", "Skill", false));
+        deck.push(newCard("Defend", false));
     }
-    deck.push(new Card(img_bash,"Bash", "Attack", false));
-    deck.push(new Card(img_anger,"Anger", "Attack", false));
-    deck.push(new Card(img_clash,"Clash", "Attack", false));
-    deck.push(new Card(img_bandage,"Bandage", "Attack", false));
+    deck.push(newCard("Bash", false));
+    //deck.push(newCard("Anger", false));
+    //deck.push(newCard("Clash", false));
+    //deck.push(newCard("Bandage", false));
     shuffle(deck, true);
     deckInitialized = true;
 }
 function drawCard() {
-    if (deck.length > 0) {
-        let card = deck.pop();
+    if (drawPile.length === 0) {
+        shuffleDiscardIntoDrawPile();
+    }
+    if (drawPile.length > 0) {
+        let card = drawPile.pop();
         currentHand.push(card);
-    }else{
-        reshuffleDiscardPile();
-        drawCard();
     }
 }
 function choosetoRemove(){
@@ -1452,10 +1436,10 @@ function getRandomRelic(){
 }
 function dealCards(numCards) {
     for (let i = 0; i < numCards; i++) {
-        if (deck.length === 0) {
+        if (drawPile.length === 0) {
             reshuffleDiscardPile();
         }
-        currentHand.push(deck.pop());
+        currentHand.push(drawPile.pop());
     }
 }
 function addCardIntoDiscard(image,name,type,upgrade){
@@ -1464,7 +1448,7 @@ function addCardIntoDiscard(image,name,type,upgrade){
 function reshuffleDiscardPile() {
     while (discardPile.length > 0) {
         let randomIndex = int(random(discardPile.length));
-        deck.push(discardPile.splice(randomIndex, 1)[0]);
+        drawPile.push(discardPile.splice(randomIndex, 1)[0]);
     }
 }
 
@@ -1513,6 +1497,45 @@ function playCard(card, entity) {
     //console.log("Player Energy: ", player.energy);
     isCardBeingPlayed = false;
 }
+function drawDrawPileButton() {
+    image(img_drawPileButton, drawPileButtonX, drawPileButtonY);
+    image(img_countCircle, drawPileButtonX+40, drawPileButtonY+25);
+    fill(255);
+    textSize(30);
+    text(drawPile.length, drawPileButtonX+95, drawPileButtonY+95);
+}
+function displayDrawPileOverlay() {
+    if (showDrawPileOverlay) {
+        // Dim the background
+        fill(0, 0, 0, 150); // Semi-transparent black
+        noStroke();
+        rect(0, 128, width, height-128);
+    
+        push();
+        scale(cardScale);
+        let spaceBetweenCards = 800; // More space between cards
+        let cardsPerRow = 5;
+        let startingX = 1200;
+        let row = 0;
+        for (let i = 0; i < drawPile.length; i++) {
+            let card = drawPile[i];
+            let cardX = startingX + (i % cardsPerRow) * spaceBetweenCards;
+            let cardY = 800 + row * (3200 * cardScale);
+            if (i > 0 && i % cardsPerRow === 4) {
+            row++; // Increment the row counter after every 5 cards
+            }
+            card.display(cardX, cardY);
+        }
+        pop();
+    
+        // Draw the informational text
+        fill(255);
+        textSize(30);
+        textAlign(CENTER, BOTTOM);
+        text("Cards are drawn from here at the start of each turn", width/2, height-50);
+    }
+}
+
 function drawDiscardButton(){
     //imageMode(CENTER);
     image(img_discardButton, discardButtonX, discardButtonY);
@@ -1521,7 +1544,24 @@ function drawDiscardButton(){
     textSize(30);
     text(discardPile.length, discardButtonX+15, discardButtonY+95);
 }
-function drawDiscardOverlay() {
+function displayReturnButton(){
+    image(img_returnButton, returnButtonX, returnButtonY);
+    fill(255); // White color for text
+    textSize(50);
+    text("Return", returnButtonX+125, returnButtonY+100);
+}
+function isReturnButtonClicked(mouseX, mouseY) {
+    return mouseX > returnButtonX && mouseX < returnButtonX + img_returnButton.width &&
+           mouseY > returnButtonY && mouseY < returnButtonY + img_returnButton.height;
+}
+function hideAllOverlays() {
+    showMapOverlay = false;
+    showDeckOverlay = false;
+    showSettingsOverlay = false;
+    showDrawPileOverlay = false;
+    showDiscardOverlay = false;
+}
+function displayDiscardOverlay() {
     if (showDiscardOverlay) {
       // Dim the background
       fill(0, 0, 0, 150); // Semi-transparent black
@@ -1550,18 +1590,99 @@ function drawDiscardOverlay() {
       textSize(30);
       textAlign(CENTER, BOTTOM);
       text("Cards here are shuffled into your draw pile when it runs out of cards", width/2, height-50);
-  
-      image(img_cancelButton, cancelButtonX, cancelButtonY);
-      fill(255); // White color for text
-      textSize(50);
-      text("Return", cancelButtonX+125, cancelButtonY+100);
     }
   }
+function toggleDrawPileOverlay() {
+    showDrawPileOverlay = !showDrawPileOverlay;
+    showCurrentHand = !showCurrentHand;
+}
 function toggleDiscardOverlay() {
     showDiscardOverlay = !showDiscardOverlay;
+    showCurrentHand = !showCurrentHand;
 }
-function showdiscardPile() {
+function toggleMapOverlay() {
+    let currentFloorY = calculateY(floor);
+    mapY = height - currentFloorY - floorHeight*2;
+    showMapOverlay = !showMapOverlay;
+    showCurrentHand = !showCurrentHand;
 }
+function toggleDeckOverlay() {
+    showDeckOverlay = !showDeckOverlay;
+    showCurrentHand = !showCurrentHand;
+}
+function toggleSettingsOverlay() {
+    showSettingsOverlay = !showSettingsOverlay;
+    showCurrentHand = !showCurrentHand;
+}
+function hideCurrentHand() {
+    showCurrentHand = false;
+}
+function hideDrawPileOverlay() {
+    showDrawPileOverlay = false;
+}
+function hideDiscardOverlay() {
+    showDiscardOverlay = false;
+}
+function hideMapOverlay() {
+    showMapOverlay = false;
+}
+function hideDeckOverlay() {
+    showDeckOverlay = false;
+}
+function hideSettingsOverlay() {
+    showSettingsOverlay = false;
+}
+function handleDrawPileClick() {
+    
+    if (mouseX > drawPileButtonX && mouseX < drawPileButtonX + drawPileButtonWidth &&
+        mouseY > drawPileButtonY && mouseY < drawPileButtonY + drawPileButtonHeight && 
+        !showDiscardOverlay && !showSettingsOverlay && !showDeckOverlay && !showMapOverlay) {
+        console.log("Draw pile clicked");
+        toggleDrawPileOverlay();
+    }
+}
+
+function handleDiscardPileClick() {
+    if (mouseX > discardButtonX && mouseX < discardButtonX + discardButtonWidth &&
+        mouseY > discardButtonY && mouseY < discardButtonY + discardButtonHeight && 
+        !showDrawPileOverlay && !showSettingsOverlay && !showDeckOverlay && !showMapOverlay) {
+        toggleDiscardOverlay();
+    }
+}
+
+function handleCardClick() {
+    for (let card of currentHand) {
+        if (mouseIsOver(card, cardScale)) {
+            card.isSelected = true;
+            selectedCard = card;
+            return;
+        } else {
+            card.isSelected = false;
+        }
+    }
+}
+
+function handleEntityClick() {
+    if (selectedCard) {
+        for (let enemy of enemies) {
+            if (mouseIsOver(enemy, 1) && selectedCard.type === "Attack") {
+                enemy.isTargeted = true; // Highlight the targeted enemy
+                // playCard(selectedCard, enemy);
+            } else if (mouseIsOver(player, 1) && selectedCard.type !== "Attack") {
+                player.isTargeted = true; // Highlight the targeted player
+                // playCard(selectedCard, player);
+            }
+        }
+        selectedCard.isSelected = false; // Unhighlight the card after trying to play it
+        selectedCard = null;
+    } else {
+        for (let enemy of enemies) {
+            enemy.isTargeted = false;
+        }
+        player.isTargeted = false;
+    }
+}
+
 function showSpeechBubble(text, duration) {
     bubbleText = text;
     showBubble = true;
@@ -1671,7 +1792,6 @@ function checkForWin(){
         sfx_Victory.play();
         console.log("You win!");
         timing = REWARD_SCREEN;
-        rewards = [20];
         turnNumber = 0;
     }
 }
@@ -1753,10 +1873,15 @@ function displayReward(reward, x, y) {
     tint('silver');
     image(img_rewardListItemPanel, x, y);
     noTint();
-    image(img_gold, x-180, y);
     textSize(40);
     textAlign(CENTER, CENTER);
-    text(reward+" Gold", x, y);
+    if (reward.type === "gold") {
+        image(img_gold, x - 180, y);
+        text(reward.amount + " Gold", x, y);
+    } else if (reward.type === "card") {
+        image(img_normalCardReward, x - 180, y);
+        text("Card: " + reward.cardName, x, y);
+    }
     pop();
 }
 function handleRewardClick() {
@@ -1771,11 +1896,15 @@ function handleRewardClick() {
                 mouseY > rewardY - img_rewardListItemPanel.height / 2 &&
                 mouseY < rewardY + img_rewardListItemPanel.height / 2) {
                 
-                // Play the gold sound
-                sfx_Gold.play();
-
-                // Increase the money by the reward amount
-                money += rewards[i];
+                if (rewards[i].type === "gold") {
+                    // Handle gold reward
+                    money += rewards[i].amount;
+                    sfx_Gold.play();
+                } else if (rewards[i].type === "card") {
+                    // Handle card reward
+                    deck.push(newCard(rewards[i].cardName, false));
+                    sfx_CardSelect.play();
+                }
 
                 // Remove the reward from the rewards array
                 rewards.splice(i, 1);
@@ -1784,7 +1913,7 @@ function handleRewardClick() {
                 break;
             }
         }
-    }
+    }console.log("Rewards after claim:", rewards);
 }
 
 function handleProceedButton() {
@@ -1950,6 +2079,7 @@ function endPlayerTurn() {
     startTurnAnimation("Enemy Turn");
     sfx_EndTurn.play();
     timing = ENEMY_TURN;
+    showCurrentHand = false;
 }
 function endEnemyTurn() {
 }
@@ -1962,7 +2092,7 @@ function discardcurrentHand(){
 function returncurrentHand(){
     while (currentHand.length > 0) {
         // Animation of moving remaining cards in currentHand to discardPile
-        deck.push(currentHand.pop());
+        drawPile.push(currentHand.pop());
     }
 }
 function displayintent(entity, x, y, intent, damage){//a bouncing intent icon on enemy's head
@@ -2026,6 +2156,9 @@ function displayRelics(){
 
 }
 function displayCurrentHand() {
+    if (!showCurrentHand) {
+        return;
+    }   
     push();
     scale(cardScale);
     let spaceBetweenCards = 600;
@@ -2307,6 +2440,26 @@ class Enemy {
         this.TurnTaken = true;
     }
   }
+
+  function newCard(cardName, upgraded) {
+    // Ensure the card data exists for the given card name
+    if (!cardData[cardName]) {
+        console.error("Card data not found for:", cardName);
+        return null;
+    }
+
+    const data = cardData[cardName];
+    let img = data.image;
+    if (!img) {
+        console.error("Image not found in cardData for:", cardName);
+        return null;
+    }
+    let newcard = new Card(img, cardName, data.type, upgraded);
+    //console.log("New card created:", newcard);
+    return newcard;
+}
+
+
   class Card {
     constructor(img,card,type,upgraded) {
       this.img = img;
@@ -2330,6 +2483,10 @@ class Enemy {
     display(x,y) {
         this.x = x;
         this.y = y;
+        if (!this.img) {
+            console.error("Image not found for card:", this.card);
+            return; // Stop further execution if image is not found
+        }
       // Displaying the card image
       if (player.energy >= this.cost){
         let glowIntensity = 30; 
