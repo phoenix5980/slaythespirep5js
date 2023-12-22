@@ -22,6 +22,7 @@ let sfx_PlayerTurn = [];
 let sfx_Victory;
 let sfx_Gold;
 let sfx_buff;
+let sfx_HealShort = [];
 let AmbienceMusic;
 let sfx_GameOver;
 let font;
@@ -139,6 +140,9 @@ const PLAYER_TURN = 1;
 const ENEMY_TURN = 2;
 const REWARD_SCREEN = 3;
 const GAME_OVER = 4;
+const BETWEEN_TURNS = 'betweenTurns';
+let betweenTurnsTimer = 0;
+const betweenTurnsDuration = 60; 
 let timing = TURN_START;
 let turnNumber = 0;
 let attackAnimationDelay = 200;
@@ -293,6 +297,9 @@ function preload() {
     }
     for (let i = 1; i <= 5; i++){
         sfx_PlayerTurn.push(loadSound(`assets/audio/sfx/PlayerTurn_${i}.ogg`));
+    }
+    for (let i = 1; i <= 3; i++){
+        sfx_HealShort.push(loadSound(`assets/audio/sfx/HealShort_${i}.ogg`));
     }
     battleMusic = loadSound('assets/audio/music/Level1-1.ogg');
     sfx_BattleStart = loadSound('assets/audio/sfx/BattleStart.ogg');
@@ -551,6 +558,14 @@ function handleTurns() {
             break;
         case ENEMY_TURN:
             enemyTurnActions();
+            break;        
+        case BETWEEN_TURNS:
+            if (betweenTurnsTimer <= 0) {
+                timing = TURN_START;
+                player.energy = maxEnergy;
+            } else {
+                betweenTurnsTimer--;
+            }
             break;
     }
 }
@@ -589,12 +604,12 @@ function healHP(healAmount){
     }else{
         player.hp = player.maxhp;
     }
-    sfx_buff.play();
+    random(sfx_HealShort).play();
 }
 function addMaxHP(addAmount){
     player.maxhp += addAmount;
     player.hp += addAmount;
-    sfx_buff.play();
+    random(sfx_HealShort).play();
 }
 function allCardsAreAttacks(hand) {
     return hand.every(card => card.type === "Attack");
@@ -604,28 +619,32 @@ function enemyTurnActions() {
     for (enemy of enemies){
         enemy.block = 0;
     }
-    startTurnAnimation("Enemy Turn");
-    // Check if the current enemy has finished its attack and delay timer has elapsed
-    if (attackDelayTimer <= 0) {
-        let currentEnemy = enemies[currentAttackingEnemyIndex];
-        if (!currentEnemy.TurnTaken) {
-            currentEnemy.takeTurn(player);
-            attackDelayTimer = attackDelayDuration; // Reset the delay timer after an attack
+    if (!showTurnStartAnimation){
+        // Check if the current enemy has finished its attack and delay timer has elapsed
+        if (attackDelayTimer <= 0) {
+            let currentEnemy = enemies[currentAttackingEnemyIndex];
+            if (!currentEnemy.TurnTaken) {
+                currentEnemy.takeTurn(player);
+                attackDelayTimer = attackDelayDuration; // Reset the delay timer after an attack
+            }
+    
+            // Move to the next enemy
+            currentAttackingEnemyIndex++;
+            if (currentAttackingEnemyIndex >= enemies.length) {
+                // If all enemies have taken their turn, reset for the next round
+                currentAttackingEnemyIndex = 0;
+                if ((!updateAndDrawSlash()) && (!showTurnStartAnimation)) {
+                    timing = BETWEEN_TURNS;
+                    betweenTurnsTimer = betweenTurnsDuration;
+                }
+            }
+        } else {
+            // If we're still waiting, decrease the delay timer
+            attackDelayTimer--;
         }
+        checkForGameOver();
 
-        // Move to the next enemy
-        currentAttackingEnemyIndex++;
-        if (currentAttackingEnemyIndex >= enemies.length) {
-            // If all enemies have taken their turn, reset for the next round
-            currentAttackingEnemyIndex = 0;
-            timing = TURN_START;
-            player.energy = maxEnergy;
-        }
-    } else {
-        // If we're still waiting, decrease the delay timer
-        attackDelayTimer--;
     }
-    checkForGameOver();
 }
 function displayStartScreen() {
     background(titleBackground);
@@ -660,6 +679,7 @@ function displayPlayingScreen() {
     player.display();
     for (let enemy of enemies){
         enemy.display();
+        enemy.update();
     }
     drawDiscardButton();
     drawDiscardOverlay();
@@ -695,7 +715,7 @@ function displayTurnStartAnimation() {
     fill(255);
     text("Turn "+ turnNumber+ " "+turnStartText, width / 2, height / 2);
     pop();
-    if (millis() - turnStartTime > 2000) { // 2 seconds passed
+    if (millis() - turnStartTime > 1500) { // 1.5 seconds passed
         showTurnStartAnimation = false;
     }
 }
@@ -808,11 +828,6 @@ function displayMapOverlay(){
     textSize(30);
     noStroke();
     textAlign(CENTER, CENTER);
-    if (floor == 0){
-        text("Select a Black Room", width*3/4, height*9/10);
-    }else{
-        text("Select a Black Room on the path", width*3/5, height*9/10);
-    }
     if (mapData) {
         drawMapPathsAndRooms(mapData);
     }
@@ -830,6 +845,11 @@ function displayMapOverlay(){
         });
     });*/
     displayLegend();
+    if (floor == 0){
+        text("Select a starting Room", width/2, height*9/10);
+    }else{
+        text("Select a black room on the path", width*3/5, height*9/10);
+    }
     if (mouseIsPressed){
         handleMapScrolling();
     }
@@ -877,6 +897,7 @@ function isSelectedNode(node) {
     return selectedNodes.some(selected => selected.x === node.x && selected.y === node.y);
 }
 function canSelectNode(node) {
+    if (isSelectedNode(node)) return false;
     if (currentPlayerNode === null) return true;
     return mapData.edges.some(edge => 
         (edge.src_x === currentPlayerNode.x && edge.src_y === currentPlayerNode.y && edge.dst_x === node.x && edge.dst_y === node.y) ||
@@ -932,8 +953,11 @@ function drawMapPathsAndRooms(mapData) {
             line(roomX, roomY, bossPosX, bossPosY+120);
         }
         if (icons[node.class]) {
-            if (node.y === floor) {
-                tint(0);
+            if (node.y <= floor) {
+                tint(128);
+                if(canSelectNode(node)){
+                    tint(0);
+                }
             }
             image(icons[node.class], x, y);
             noTint();
@@ -1072,7 +1096,7 @@ function firstTimeMapSelection(){
     let currentFloorY = calculateY(floor);
     mapY = height - currentFloorY - floorHeight*2;
     textSize(100);
-    text("Select a Starting Room", width, height);
+    text("Select a starting Room", width*2/5, height*9/10);
 }
 function showTutorial(){
     if (tipNo == 4){
@@ -1132,7 +1156,6 @@ function mousePressed() {
                     let y = mapY + calculateY(node.y);
                     if (dist(mouseX, mouseY, x, y) < 10) {
                         onNodeSelected(node);
-                        selectNode(node);
                     }
                 });
             }
@@ -1267,7 +1290,7 @@ function mouseReleased() {
     if (clicked){
         clicked = false;
     }if (timing === PLAYER_TURN && mouseX >= EndTurnButtonX && mouseX <= EndTurnButtonX + endTurnButton.width &&
-        mouseY >= EndTurnButtonY && mouseY <= EndTurnButtonY + endTurnButton.height) {
+        mouseY >= 940 && mouseY <= 1000) {
         endPlayerTurn();
     }
 }
@@ -1293,11 +1316,11 @@ function handleCardDragging() {
                 if (mouseIsOver(card,cardScale)) {//0.5 is the scale factor of the card
                     dragging = true;
                     draggingCard = card;
-                    if (player.energy >0){
-                        //if (draggingCard.type === 'Attack') { // Create arrow when an Attack card is dragged
+                    //if (player.energy >0){
+                        if (player.energy >= draggingCard.cost){
                             arrow = new Arrow(mouseX, mouseY,card.type);
-                        //}break;
-                    }
+                        }
+                    //}
                 }
             }
         }else if (arrow) {
@@ -1610,6 +1633,7 @@ function playerAttackAnimation(player, enemy) {
       drawSlash(slashPositionX, slashPositionY);
       slashAnimationTimer--;
     }
+    return slashAnimationTimer > 0;
   }
   
   function drawSlash(targetX, targetY) {
@@ -1627,10 +1651,18 @@ function playerAttackAnimation(player, enemy) {
 function checkForDefeat(enemy) {
     if (enemy.hp <= 0) {
         //Play defeat animation
-        enemy.fadeOut();
+        enemy.defeat();
         console.log("Enemy defeated");
         // Remove the enemy from the array
-        enemies.splice(enemies.indexOf(enemy), 1);
+        
+        setTimeout(() => {
+            // Remove the enemy after a delay
+            const index = enemies.indexOf(enemy);
+            if (index > -1) {
+                enemies.splice(index, 1);
+            }
+            checkForWin(); // Check for win after removing an enemy
+        }, 1500);
     }
 }
 function checkForWin(){
@@ -1915,7 +1947,11 @@ function displayEndTurnButton(){
 }*/
 function endPlayerTurn() {
     discardcurrentHand();
+    startTurnAnimation("Enemy Turn");
+    sfx_EndTurn.play();
     timing = ENEMY_TURN;
+}
+function endEnemyTurn() {
 }
 function discardcurrentHand(){
     while (currentHand.length > 0) {
@@ -1963,6 +1999,12 @@ function startTurnAnimation(turnText) {
     showTurnStartAnimation = true;
     turnStartText = turnText;
     turnStartTime = millis();
+    if (turnText === "Enemy Turn"){
+        sfx_EnemyTurn.play();
+    }else if (turnText === "Player Turn"){
+        //randomly play one of the 5 player turn sound effects
+        random(sfx_PlayerTurn).play();
+    }
 }
 
 /*function showTurnStartAnimation(timing){
@@ -2068,6 +2110,9 @@ function upgradeCard(card){
             }
         }
         enemy.hp -= damageThisCard;
+        if (enemy.hp < 0){
+            enemy.hp = 0;
+        }
         checkForDefeat(enemy);
         checkForWin();
     }
@@ -2135,7 +2180,9 @@ class Enemy {
       this.width = enemyData[enemy].width;
       this.height = enemyData[enemy].height;
       this.TurnTaken = false;
-      this.opacity = 1;
+      this.isDefeated = false;
+      this.fadeOut = false;
+      this.opacity = 255;
       this.vulnerable = 0;
       this.image = enemyData[enemy].image;
       this.animationIndex = 0;
@@ -2143,8 +2190,8 @@ class Enemy {
     }
     display(){
         push();
-        if (this.opacity < 1) {
-            tint(255, this.opacity * 255);  
+        if (this.opacity < 255) {
+            tint(255, this.opacity);  
         }
         /*if (this.status == 1){
             if (this.intent === "incantation"){
@@ -2156,14 +2203,27 @@ class Enemy {
         }else{*/
             image(this.image[this.animationIndex], this.x, this.y);
             //console.log(this.animationIndex);
-            if (this.animationIndex >= this.animationFrames-1){
+            if ((this.animationIndex >= this.animationFrames-1)){
                 this.animationIndex = 0;
                 //console.log("animation reset");
-            }else this.animationIndex ++;
+            }else if (!this.isDefeated){
+                this.animationIndex ++;
+            }
         //}
         pop();
-        displayHPbar(this,this.x+100, this.y+330, this.maxhp);
-        displayintent(this,this.x+100, this.y-20,this.intent,this.damage);
+        if (!this.isDefeated){
+            displayHPbar(this,this.x+100, this.y+330, this.maxhp);
+            displayintent(this,this.x+100, this.y-20,this.intent,this.damage);
+        }
+    }
+    update() {
+        if (this.fadeOut) {
+            this.opacity -= 5; // Adjust the fading speed
+            if (this.opacity <= 0) {
+                this.opacity = 0;
+                this.fadeOut = false;
+            }
+        }
     }
     moveLeft(){
         this.x -= 10;
@@ -2171,15 +2231,11 @@ class Enemy {
     moveBack(){
         this.x += 10;
     }
-    fadeOut() {
-        let fadeInterval = setInterval(() => {
-        this.opacity -= 0.05;  // Decrease opacity by 5%
-        if (this.opacity <= 0) {
-            clearInterval(fadeInterval);  // Stop the interval when fully transparent
-            this.opacity = 0;  // Ensure opacity doesn't go below 0
-        }
-        }, 500); 
+    defeat() {
+        this.isDefeated = true;
+        this.fadeOut = true;
     }
+
     getHit() {
         if (!this.beingHit) { 
             this.beingHit = true;
