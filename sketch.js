@@ -36,9 +36,21 @@ let img_ironclad_corpse;
 let img_cultist_rally = [];
 let img_cultist_waving = [];
 let img_jawworm = [];
+let img_redlouse = [];
+let img_redlouse_curlup = [];
+let img_greenlouse = [];
+let img_greenlouse_curlup = [];
+let img_acidslime = [];
+let img_spikeslime = [];
+let img_lagavulin_sleeping = [];
+let img_lagavulin_awake = [];
+let img_gremlinnob = [];
 let img_strike;
 let img_defend;
 let img_bash;
+let img_clash;
+let img_anger;
+let img_bandage;
 let img_arrowhead;
 let img_arrowbody;
 let img_framecorner;
@@ -175,8 +187,10 @@ let eventNo = 0;
 let fire = [];
 let img_smith;
 let img_sleep;
-
-
+let first3Battle = true;
+let showTurnStartAnimation = false;
+let turnStartText = "";
+let turnStartTime = 0;
 const bossPosition = {x: 960, y: 400};
 const floorHeight = 150;
 const discardButtonX = 1800;
@@ -201,29 +215,35 @@ MonsterRoom: "Enemy",
 MonsterRoomElite: "Elite"
 };
 const cardData = {
-    "Strike": {type: "Attack", damage: 6, block: 0, description: "Deal 6 damage.", cost: 1, effect: null},
-    "Defend": {type: "Skill", damage: 0, block: 5, description: "Gain 5 Block.", cost: 1, effect: (player)=>{
-        player.addBlock(5);
-    }},
-    "Bash": {type: "Attack", damage: 8, block: 0, description: "Deal 8 damage.          Apply 2 Vulnerable", cost: 2, effect:(enemy)=>  {enemy.addVulnerable(2);} },
-    // Add more cards here
-  };
+    "Strike": {type: "Attack", damage: 6, block: 0, description: "Deal 6 damage.", cost: 1, effect: null, rarity:"Starter", upgrade:{damage: 9,description: "Deal 9 damage."}},
+    "Defend": {type: "Skill", damage: 0, block: 5, description: "Gain 5 Block.", cost: 1, effect: (player)=>{player.addBlock(5);}, rarity:"Starter", upgrade:{effect: (player)=>{player.addBlock(8);},description: "Gain 8 Block"}},
+    "Bash": {type: "Attack", damage: 8, block: 0, description: "Deal 8 damage.          Apply 2 Vulnerable", cost: 2, effect:(enemy)=>  {enemy.addVulnerable(2);}, rarity:"Starter", upgrade:{damage:10, effect: (player)=>{enemy.addVulnerable(3);},description: "Deal 10 damage.          Apply 3 Vulnerable"} },
+    "Clash": {type: "Attack", damage: 14, block: 0, description: "Can only be played if every card in your hand is an Attack. Deal 14 damage.", cost: 0, effect: null, rarity:"Common", upgrade:{damage: 18,description: "Can only be played if every card in your hand is an Attack. Deal 18 damage."}},
+    "Anger": {type: "Attack", damage: 6, block: 0, description: "Deal 6 damage. Add a copy of this card into your discard pile.", cost: 0, effect: (enemy)=>{enemy.addCardIntoDiscard(img_anger,"Anger","Attack",false);}, rarity:"Common", upgrade:{damage: 8, effect: (enemy)=>{enemy.addCardIntoDiscard(img_anger,"Anger","Attack",true);},description: "Deal 8 damage. Add a copy of this card into your discard pile."}},
+    "Bandage": {type: "Skill", damage: 0, block: 0, description: "Heal 4 HP.", cost: 0, effect: (player)=>{player.healHP(4);}, rarity:"Common", upgrade:{effect: (player)=>{player.healHP(6);},description: "Heal 6 HP."}},
+};
 const enemyData = {
-    "Cultist": {name: "Cultist", maxhp:48, basicdamage: 6, strength: 0, block: 0, weak: 0, intent: "attack", status: 0, damage: 6, width:340, height:340, image: img_cultist_rally, frames:262},
-    "Jaw Worm": {name: "Jaw Worm", maxhp: 40, basicdamage: 8, strength: 0, block: 0, weak: 0, intent: "attack", status: 0, damage: 6, width:340, height:340, image: img_jawworm, frames:94},
-    "Red Louse": {name: "Red Louse", maxhp: 10, basicdamage: 5, strength: 0, block: 0, weak: 0, intent: "attack", status: 0, damage: 6, width:340, height:340},
-    "Green Louse": {name: "Green Louse", maxhp: 11, basicdamage: 5, strength: 0, block: 0, weak: 0, intent: "attack", status: 0, damage: 6, width:340, height:340},
-    "Acid Slime": {name: "Acid Slime", maxhp: 8, basicdamage: 3, strength: 0, block: 0, weak: 0, intent: "attack", status: 0, damage: 6, width:340, height:340},
-    "Spike Slime": {name: "Spike Slime", maxhp: 10, basicdamage: 5, strength: 0, block: 0, weak: 0, intent: "attack", status: 0, damage: 6, width:340, height:340}
+    "Cultist": {name: "Cultist", maxhp:48, basicdamage: 6, strength: 0, block: 0, weak: 0, intent: "attack", status: 0, width:340, height:340, image: img_cultist_rally, frames:262, altimage: img_cultist_waving, altframes:131},
+    "Jaw Worm": {name: "Jaw Worm", maxhp: 40, basicdamage: 8, strength: 0, block: 0, weak: 0, intent: "attack", status: 0, width:340, height:340, image: img_jawworm, frames:94, altimage: img_jawworm, altframes:1},
+    "Red Louse": {name: "Red Louse", maxhp: 10, basicdamage: 5, strength: 0, block: 0, weak: 0, intent: "attack", status: 0, width:340, height:340, image: img_redlouse, frames:1, altimage: img_redlouse_curlup, altframes:1},
+    "Green Louse": {name: "Green Louse", maxhp: 11, basicdamage: 5, strength: 0, block: 0, weak: 0, intent: "attack", status: 0, width:340, height:340, image: img_greenlouse, frames:1, altimage: img_greenlouse_curlup, altframes:1},
+    "Acid Slime": {name: "Acid Slime", maxhp: 8, basicdamage: 3, strength: 0, block: 0, weak: 0, intent: "attack", status: 0, width:340, height:340, image: img_acidslime, frames:1},
+    "Spike Slime": {name: "Spike Slime", maxhp: 10, basicdamage: 5, strength: 0, block: 0, weak: 0, intent: "attack", status: 0, width:340, height:340, image: img_spikeslime, frames:1},
+    "Lagavulin": {name: "Lagavulin", maxhp: 109, basicdamage: 18, strength: 0, block: 0, weak: 0, intent: "sleeping", status: 0, width:680, height:680, image: img_lagavulin_sleeping, frames:1, altimage: img_lagavulin_awake, altframes:1},
+    "Gremlin Nob": {name: "Gremlin Nob", maxhp: 82, basicdamage: 14, strength: 0, block: 0, weak: 0, intent: "buff", status: 0, width:340, height:340, image: img_gremlinnob, frames:1},
     }
-const act1Encounters = [
+const act1first3Encounters = [
     { name: "Cultist", enemies: ["Cultist"], probability: 0.75 },
     { name: "Jaw Worm", enemies: ["Jaw Worm"], probability: 0.25 },
     { name: "2 Louses", enemies: ["Red Louse"], probability: 0 },//["Red Louse","Green Louse"]
     { name: "small slimes", enemies: ["Acid Slime"], probability: 0}//["Acid Slime","Spike Slime"]
 ];
+const act1Elites = [
+    { name: "Lagavulin", ememies: ["Lagavulin"], probability: 0.5 },
+    { name: "Gremlin Nob", enemies: ["Gremlin Nob"], probability: 0.5 }
+]
 const boss ={
-    "Hexaghost": {name: "Hexaghost", maxhp: 250, basicdamage: 6, strength: 0, block: 0, weak: 0, intent: "attack", status: 0, damage: 6, width:340, height:340}
+    "Hexaghost": {name: "Hexaghost", maxhp: 250, basicdamage: 6, strength: 0, block: 0, weak: 0, intent: "Unknown", status: 0, width:340, height:340}
 }
 let essentialAssetsLoaded = false;
 let allAssetsLoaded = false;
@@ -334,6 +354,9 @@ function loadRemainingAssets() {
     img_strike = loadImage('assets/images/cards/strike.png');
     img_defend = loadImage('assets/images/cards/defend.png');
     img_bash = loadImage('assets/images/cards/bash.png');
+    img_clash = loadImage('assets/images/cards/clash.png');
+    img_anger = loadImage('assets/images/cards/anger.png');
+    img_bandage = loadImage('assets/images/cards/bandage.png');
     img_arrowhead = loadImage('assets/images/combat/reticleArrow.png');
     img_arrowbody = loadImage('assets/images/combat/reticleBlock.png');
     img_framecorner = loadImage('assets/images/combat/reticleCorner.png');
@@ -416,7 +439,7 @@ function setup() {
     longMap.image(mapMid, 0, mapTop.height);
     longMap.image(mapBot, 0, mapTop.height + mapMid.height);
     player = new Player(playerX, playerY);
-    startBattle();
+    startBattle(act1first3Encounters);
     goldenShrineEvent = new Event(
         "Golden Shrine",
         "Before you lies an elaborate shrine to an ancient spirit.",
@@ -436,7 +459,7 @@ function setup() {
         "The Cleric",
         "Hello friend! I am Cleric! Are you interested in my services?!",
         [
-          { text: "[Heal]", enabled: true, description: "Lose 35 Gold. Heal 25% of your Max HP", penalty: null, action: () => { money -= 35; healHP(int(player.maxhp*0.25));sfx_buff.play();  } },
+          { text: "[Heal]", enabled: true, description: "Lose 35 Gold. Heal 25% of your Max HP", penalty: null, action: () => { money -= 35; healHP(int(player.maxhp*0.25))  } },
           { text: "[Purify]", enabled: true, description: "Lose 50 Gold. Remove a card from your deck.", penalty: null, action: () => { money -= 50; choosetoRemove(); } },
           { text: "[Leave]", enabled: true, description: "Nothing happens.", penalty: null, action: () => { /* Do nothing */ } }
         ],
@@ -450,8 +473,8 @@ function setup() {
         "Shop",
         "Welcome to the shop! Currently your offers are a banana, a donut, and a box",
         [
-          { text: "[Banana]", enabled: true, description: "50 Gold. Heal 1/3 of your max HP.", penalty: null, action: () => { money -= 50; healHP(int(player.maxhp*0.33));sfx_buff.play();  } },
-          { text: "[Donut]", enabled: true, description: "75 Gold. Max HP +10.", penalty: null, action: () => { money -= 75; addMaxHP(10);sfx_buff.play();  } },
+          { text: "[Banana]", enabled: true, description: "50 Gold. Heal 1/3 of your max HP.", penalty: null, action: () => { money -= 50; healHP(int(player.maxhp*0.33));  } },
+          { text: "[Donut]", enabled: true, description: "75 Gold. Max HP +10.", penalty: null, action: () => { money -= 75; addMaxHP(10);  } },
           { text: "[Box]", enabled: true, description: "100 Gold. Receive a Relic.", penalty: null, action: () => { money -= 100; getRandomRelic(); } }
         ],
         [
@@ -484,6 +507,9 @@ function draw() {
     updateAndDrawSlash();
     if (gameState != "startSceen" && deckInitialized){
         displaytopPanel();
+    }
+    if (showTurnStartAnimation) {
+        displayTurnStartAnimation();
     }
 }
 function handleGameState(){
@@ -541,16 +567,17 @@ function beginTurn() {
         enemy.decrementVulnerable();
     }
     player.decrementVulnerable();
-    
     timing = PLAYER_TURN;
     for (let enemy of enemies){
         enemy.TurnTaken = false;
     }
+    startTurnAnimation("Player Turn");
 }
 
 function playerTurnActions() {
-    showTurnStartAnimation(timing);
-    handleCardDragging();
+    if (!showTurnStartAnimation){
+        handleCardDragging();
+    }
     /*text("MouseX "+int(mouseX), 200, 150);
     text("MouseY "+int(mouseY), 200, 200);
     text("Mouse over Player= "+mouseIsOver(player,1), 300, 250);
@@ -562,17 +589,22 @@ function healHP(healAmount){
     }else{
         player.hp = player.maxhp;
     }
+    sfx_buff.play();
 }
 function addMaxHP(addAmount){
     player.maxhp += addAmount;
     player.hp += addAmount;
+    sfx_buff.play();
 }
+function allCardsAreAttacks(hand) {
+    return hand.every(card => card.type === "Attack");
+}
+
 function enemyTurnActions() {
-    showTurnStartAnimation(timing);
     for (enemy of enemies){
         enemy.block = 0;
     }
-    console.log("Enemy Turn");
+    startTurnAnimation("Enemy Turn");
     // Check if the current enemy has finished its attack and delay timer has elapsed
     if (attackDelayTimer <= 0) {
         let currentEnemy = enemies[currentAttackingEnemyIndex];
@@ -637,7 +669,6 @@ function displayPlayingScreen() {
         drawSpeechBubble();
     }
         displayEndTurnButton();
-        handleEndTurnButton();
     }
     if (timing === REWARD_SCREEN){
         drawRewardScreen();
@@ -654,6 +685,20 @@ function displayPlayingScreen() {
     //displayTurnActions();
 }
 
+function displayTurnStartAnimation() {
+    push();
+    fill(0, 0, 0, 128); // Transparent black
+    rectMode(CENTER);
+    rect(width / 2, height / 2, 1920, 200); // Adjust size as needed
+    textAlign(CENTER, CENTER);
+    textSize(100);
+    fill(255);
+    text("Turn "+ turnNumber+ " "+turnStartText, width / 2, height / 2);
+    pop();
+    if (millis() - turnStartTime > 2000) { // 2 seconds passed
+        showTurnStartAnimation = false;
+    }
+}
 function displayEventScreen(){
     noTint();
     background("#7A6A4F");
@@ -735,7 +780,6 @@ if (mouseX >= sleepArea.x && mouseX <= sleepArea.x + sleepArea.width &&
     // The mouse click is within the sleep image
     console.log("Sleep option selected");
     healHP(int(player.maxhp*0.3));
-    sfx_buff.play();
     gameState = "map";
     let currentFloorY = calculateY(floor);
     mapY = height - currentFloorY - floorHeight*2;
@@ -850,9 +894,9 @@ function getRandomEncounter(encounters) {
     }
     return null;
 }
-function startBattle() {
+function startBattle(encounters) {
     timing = TURN_START;
-    const encounter = getRandomEncounter(act1Encounters);
+    const encounter = getRandomEncounter(encounters);
     enemies = []; // Clear existing enemies
     for (let enemyType of encounter.enemies) {
         console.log(enemyType);
@@ -982,14 +1026,18 @@ function onNodeSelected(node) {
                     gameState = "tutorial";
                     hideMapOverlay();
                 }else{
-                    startBattle();
+                    if (first3Battle){
+                        startBattle(act1first3Encounters);
+                    }else {
+                        startBattle(act1first3Encounters);
+                    }
                     gameState = "battle";
                     toggleMapOverlay();
                     floor ++;
                 }
                 break;
             case "MonsterRoomElite":
-                startBattle();
+                startBattle(act1first3Encounters);
                 gameState = "battle";
                 toggleMapOverlay();
                 floor ++;
@@ -1008,12 +1056,14 @@ function onNodeSelected(node) {
                 eventTransitionStartTime = millis();
                 toggleMapOverlay();
                 floor ++;
+                break;
             case "RestRoom":
                 gameState = "campfire";
                 eventTransitionActive = true;
                 eventTransitionStartTime = millis();
                 toggleMapOverlay();
                 floor ++;
+                break;
         }
     }
 }
@@ -1070,6 +1120,8 @@ function showTutorial(){
 }
 function mousePressed() {
     if (clickCooldown > 0) {
+        return;
+    }if (showTurnStartAnimation) {
         return;
     }
     clicked = true;
@@ -1214,7 +1266,9 @@ function mouseReleased() {
     }
     if (clicked){
         clicked = false;
-        
+    }if (timing === PLAYER_TURN && mouseX >= EndTurnButtonX && mouseX <= EndTurnButtonX + endTurnButton.width &&
+        mouseY >= EndTurnButtonY && mouseY <= EndTurnButtonY + endTurnButton.height) {
+        endPlayerTurn();
     }
 }
 function mouseIsOver(entity, scaleFactor) {
@@ -1346,12 +1400,15 @@ function drawFormattedText(x, y, formattedText) {
   
 function initializeDeck() {
     for (let i = 0; i < 5; i++) {
-        deck.push(new Card(img_strike,"Strike", "Attack"));
+        deck.push(new Card(img_strike,"Strike", "Attack",false));
     }
     for (let i = 0; i < 4; i++) {
-        deck.push(new Card(img_defend,"Defend", "Skill"));
+        deck.push(new Card(img_defend,"Defend", "Skill", false));
     }
-    deck.push(new Card(img_bash,"Bash", "Attack"));
+    deck.push(new Card(img_bash,"Bash", "Attack", false));
+    deck.push(new Card(img_anger,"Anger", "Attack", false));
+    deck.push(new Card(img_clash,"Clash", "Attack", false));
+    deck.push(new Card(img_bandage,"Bandage", "Attack", false));
     shuffle(deck, true);
     deckInitialized = true;
 }
@@ -1378,6 +1435,9 @@ function dealCards(numCards) {
         currentHand.push(deck.pop());
     }
 }
+function addCardIntoDiscard(image,name,type,upgrade){
+    discardPile.push(new Card(image,name,type,upgrade));
+}
 function reshuffleDiscardPile() {
     while (discardPile.length > 0) {
         let randomIndex = int(random(discardPile.length));
@@ -1394,6 +1454,11 @@ function playCard(card, entity) {
     if (player.energy < card.cost) {
         showSpeechBubble("Not enough Energy", 3000);
         console.log("Not enough Energy");
+        return;
+    }
+    if (card.card === "Clash" && !allCardsAreAttacks(currentHand)) {
+        console.log("Not all Attacks Cards");
+        showSpeechBubble("Not all Attacks Cards", 3000);
         return;
     }
     isCardBeingPlayed = true;
@@ -1835,7 +1900,7 @@ function displayEndTurnButton(){
     pop();
 }
 
-function handleEndTurnButton() {
+/*function handleEndTurnButton() {
     if (timing != PLAYER_TURN) {
         return;
     }
@@ -1844,10 +1909,13 @@ function handleEndTurnButton() {
     if (mouseX >= EndTurnButtonX && mouseX <= EndTurnButtonX + buttonWidth &&
         mouseY >= EndTurnButtonY && mouseY <= EndTurnButtonY + buttonHeight) {
         if (mouseIsPressed) {
-            discardcurrentHand();
-            timing = ENEMY_TURN;
+            endPlayerTurn();
         }
     }
+}*/
+function endPlayerTurn() {
+    discardcurrentHand();
+    timing = ENEMY_TURN;
 }
 function discardcurrentHand(){
     while (currentHand.length > 0) {
@@ -1891,7 +1959,13 @@ function displayintent(entity, x, y, intent, damage){//a bouncing intent icon on
     }
     pop();
 }
-function showTurnStartAnimation(timing){
+function startTurnAnimation(turnText) {
+    showTurnStartAnimation = true;
+    turnStartText = turnText;
+    turnStartTime = millis();
+}
+
+/*function showTurnStartAnimation(timing){
     textSize(50);
     fill(255);
     textFont(font);
@@ -1905,14 +1979,14 @@ function showTurnStartAnimation(timing){
     }else if (timing == REWARD_SCREEN){
         //text(`Loot!`, width/2, 200); 
     }
-}
+}*/
 function displayRelics(){
 
 }
 function displayCurrentHand() {
     push();
     scale(cardScale);
-    let spaceBetweenCards = currentHand[0].width;
+    let spaceBetweenCards = 600;
     let startingX = 1500;
     for (let i = 0; i < currentHand.length; i++){
         let cardX = startingX + i * spaceBetweenCards;
@@ -1932,6 +2006,9 @@ function displayCurrentHand() {
       drawPile = shuffle(drawPile);
   }
 
+function upgradeCard(card){
+    card.upgrade();
+}
   class Player {
     constructor(x,y) {
         this.maxhp = 80;
@@ -1969,6 +2046,9 @@ function displayCurrentHand() {
             }
             displayEnergy(this.energy,this.maxenergy);
         }
+    }
+    healHP(amount){
+        healHP(amount);
     }
     attack(enemy, card){
         playerAttackAnimation(player,enemy);
@@ -2142,7 +2222,9 @@ class Enemy {
     incantation() {
       this.ritualLayers += 3;
     }
-  
+    addCardIntoDiscard(image,name,type,upgrade){
+        discardPile.push(new Card(image,name,type,upgrade));
+    }
     attack(player) {
         enemyAttackAnimation(this, player);
         // Temporary damage calculation for this attack only
@@ -2170,7 +2252,7 @@ class Enemy {
     }
   }
   class Card {
-    constructor(img,card,type) {
+    constructor(img,card,type,upgraded) {
       this.img = img;
       //this.x = x;
       //this.y = y;
@@ -2184,6 +2266,7 @@ class Enemy {
         this.cost = data.cost;
         this.effect = data.effect;
       this.isSelected = false;
+      this.isUpgraded = upgraded;
       this.width = 300*2;//img.width;
       this.height = 420*2;//img.height;
     }
@@ -2231,5 +2314,20 @@ class Enemy {
       text(this.card, this.x+300, this.y+45);
       textSize(50);
       text(this.description, this.x+100, this.y+450, 400, 300); 
+    }
+    upgrade(){
+        if (this.isUpgraded) {
+            console.log("Already upgraded!");
+            return; // Already upgraded
+        }
+        const upgradeData = cardData[this.name].upgrade;
+        if (upgradeData) {
+            this.damage = upgradeData.damage || this.damage;
+            this.block = upgradeData.block || this.block;
+            this.description = upgradeData.description || this.description;
+            this.cost = upgradeData.cost || this.cost;
+            this.effect = upgradeData.effect || this.effect;
+        }
+        this.isUpgraded = true;
     }
 }
