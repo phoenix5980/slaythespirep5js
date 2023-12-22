@@ -2363,13 +2363,14 @@ class Enemy {
       }
       text(this.cost, this.x+20, this.y+10);
       textAlign(CENTER, CENTER);
-      fill(255);
-      textSize(30);
+      fill(0);
+      textSize(40);
       text(this.type, this.x+300, this.y+450);
+      fill(255);
       textSize(65);
       text(this.card, this.x+300, this.y+45);
-      textSize(50);
-      text(this.description, this.x+100, this.y+450, 400, 300); 
+      textSize(58);
+      text(this.description, this.x+65, this.y+450, 500, 300); 
     }
     upgrade(){
         if (this.isUpgraded) {
