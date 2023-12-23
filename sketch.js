@@ -23,6 +23,10 @@ let sfx_Victory;
 let sfx_Gold;
 let sfx_buff;
 let sfx_HealShort = [];
+let sfx_ChestOpen;
+let sfx_SleepJingle;
+let sfx_UpgradeCard;
+let sfx_BurnCard;
 let AmbienceMusic;
 let sfx_GameOver;
 let font;
@@ -201,6 +205,9 @@ let first3Battle = true;
 let showTurnStartAnimation = false;
 let turnStartText = "";
 let turnStartTime = 0;
+let deckScrollOffset = 0;
+let drawPileScrollOffset = 0;
+let discardPileScrollOffset = 0;
 const bossPosition = {x: 960, y: 400};
 const floorHeight = 150;
 const drawPileButtonX = 0;
@@ -212,7 +219,7 @@ const discardButtonY = 950;
 const discardButtonWidth = 128;
 const discardButtonHeight = 128;
 const returnButtonX = 0 ;
-const returnButtonY = 880;
+const returnButtonY = 830;
 const countCircleDiameter = 128;
 const EndTurnButtonX = 1550;
 const EndTurnButtonY = 850;
@@ -322,6 +329,10 @@ function preload() {
     sfx_Victory = loadSound('assets/audio/sfx/Victory.ogg');
     sfx_Gold = loadSound('assets/audio/sfx/Gold.ogg');
     sfx_buff = loadSound('assets/audio/sfx/Buff.ogg');
+    sfx_SleepJingle = loadSound('assets/audio/sfx/SleepJingle.ogg');
+    sfx_UpgradeCard = loadSound('assets/audio/sfx/UpgradeCard.ogg');
+    sfx_BurnCard = loadSound('assets/audio/sfx/BurnCard.ogg');
+    sfx_ChestOpen = loadSound('assets/audio/sfx/ChestOpen.ogg');
     sfx_GameOver = loadSound('assets/audio/sfx/GameOver.ogg');
     mapTop = loadImage('assets/images/map/mapTop.png');
     mapMid = loadImage('assets/images/map/mapMid.png');
@@ -480,7 +491,7 @@ function setup() {
         "Hello friend! I am Cleric! Are you interested in my services?!",
         [
           { text: "[Heal]", enabled: true, description: "Lose 35 Gold. Heal 25% of your Max HP", penalty: null, action: () => { money -= 35; healHP(int(player.maxhp*0.25))  } },
-          { text: "[Purify]", enabled: true, description: "Lose 50 Gold. Remove a card from your deck.", penalty: null, action: () => { money -= 50; choosetoRemove(); } },
+          { text: "[Purify]", enabled: true, description: "Lose 50 Gold. Remove a card from your deck.", penalty: null, action: () => { money -= 50; choosetoRemove(deck); } },
           { text: "[Leave]", enabled: true, description: "Nothing happens.", penalty: null, action: () => { /* Do nothing */ } }
         ],
         [
@@ -828,6 +839,7 @@ if (mouseX >= sleepArea.x && mouseX <= sleepArea.x + sleepArea.width &&
     gameState = "map";
     let currentFloorY = calculateY(floor);
     mapY = height - currentFloorY - floorHeight*2;
+    sfx_SleepJingle.play();
     battleMusic.play();
 
 }
@@ -835,6 +847,7 @@ else if (mouseX >= smithArea.x && mouseX <= smithArea.x + smithArea.width &&
          mouseY >= smithArea.y && mouseY <= smithArea.y + smithArea.height) {
     // The mouse click is within the smith image
     console.log("Smith option selected");
+    choosetoUpgrade(deck);
     // Handle smith option logic here
 }
 }
@@ -1030,11 +1043,8 @@ function getRoomColor(roomClass) {
             return color(128); // Default color
     }
 }
-function displayDeckOverlay(){
-    noTint();
-    fill(0, 0, 0, 150);
-    rect(0, 0, width, height);
-}
+
+
 function displaySettingsOverlay(){
     noTint();
     fill(0, 0, 0, 150);
@@ -1207,9 +1217,11 @@ function mousePressed() {
         handleProceedButton();
     } else if (gameState === "battle"){
         // If a card is clicked, select it and highlight it    
-        if (isReturnButtonClicked(mouseX, mouseY)) {
-            hideAllOverlays();
-            return; // Exit early to prevent other click actions
+        if (showReturnButton){
+            if (isReturnButtonClicked(mouseX, mouseY)) {
+                hideAllOverlays();
+                return; // Exit early to prevent other click actions
+            }
         }
         if (timing === PLAYER_TURN) {
             handleDrawPileClick();
@@ -1338,7 +1350,7 @@ function blockAnimation(entity) {
     pop();
   }
   
-  function displayHPbar(entity, x, y, maxHP) {
+function displayHPbar(entity, x, y, maxHP) {
     push();
     // Background bar
     strokeWeight(0);
@@ -1428,9 +1440,13 @@ function drawCard() {
         currentHand.push(card);
     }
 }
-function choosetoRemove(){
-
+function choosetoRemove(pile){
+    sfx_BurnCard.play();
 }
+function choosetoUpgrade(pile) {
+    sfx_UpgradeCard.play();
+}
+
 function getRandomRelic(){
 
 }
@@ -1504,37 +1520,7 @@ function drawDrawPileButton() {
     textSize(30);
     text(drawPile.length, drawPileButtonX+95, drawPileButtonY+95);
 }
-function displayDrawPileOverlay() {
-    if (showDrawPileOverlay) {
-        // Dim the background
-        fill(0, 0, 0, 150); // Semi-transparent black
-        noStroke();
-        rect(0, 128, width, height-128);
-    
-        push();
-        scale(cardScale);
-        let spaceBetweenCards = 800; // More space between cards
-        let cardsPerRow = 5;
-        let startingX = 1200;
-        let row = 0;
-        for (let i = 0; i < drawPile.length; i++) {
-            let card = drawPile[i];
-            let cardX = startingX + (i % cardsPerRow) * spaceBetweenCards;
-            let cardY = 800 + row * (3200 * cardScale);
-            if (i > 0 && i % cardsPerRow === 4) {
-            row++; // Increment the row counter after every 5 cards
-            }
-            card.display(cardX, cardY);
-        }
-        pop();
-    
-        // Draw the informational text
-        fill(255);
-        textSize(30);
-        textAlign(CENTER, BOTTOM);
-        text("Cards are drawn from here at the start of each turn", width/2, height-50);
-    }
-}
+
 
 function drawDiscardButton(){
     //imageMode(CENTER);
@@ -1545,15 +1531,19 @@ function drawDiscardButton(){
     text(discardPile.length, discardButtonX+15, discardButtonY+95);
 }
 function displayReturnButton(){
+    imageMode(BASELINE);
     image(img_returnButton, returnButtonX, returnButtonY);
     fill(255); // White color for text
     textSize(50);
-    text("Return", returnButtonX+125, returnButtonY+100);
+    textAlign(CENTER, CENTER);
+    text("Return", returnButtonX+125, returnButtonY+70);
 }
 function isReturnButtonClicked(mouseX, mouseY) {
     return mouseX > returnButtonX && mouseX < returnButtonX + img_returnButton.width &&
            mouseY > returnButtonY && mouseY < returnButtonY + img_returnButton.height;
 }
+
+
 function hideAllOverlays() {
     showMapOverlay = false;
     showDeckOverlay = false;
@@ -1561,58 +1551,105 @@ function hideAllOverlays() {
     showDrawPileOverlay = false;
     showDiscardOverlay = false;
 }
-function displayDiscardOverlay() {
-    if (showDiscardOverlay) {
-      // Dim the background
-      fill(0, 0, 0, 150); // Semi-transparent black
-      noStroke();
-      rect(0, 128, width, height-128);
-  
-      push();
-      scale(cardScale);
-      let spaceBetweenCards = 800; // More space between cards
-      let cardsPerRow = 5;
-      let startingX = 1200;
-      let row = 0;
-      for (let i = 0; i < discardPile.length; i++) {
-        let card = discardPile[i];
-        let cardX = startingX + (i % cardsPerRow) * spaceBetweenCards;
-        let cardY = 800 + row * (3200 * cardScale);
+function displayCardPileOverlay(pile, infoText, startX, startY, spaceBetweenCards, cardsPerRow, scrollOffset) {
+    hideCurrentHand();
+    fill(0, 0, 0, 150); // Semi-transparent black
+    noStroke();
+    rect(0, 128, width, height - 128);
+
+    push();
+    scale(cardScale);
+    let row = 0;
+    for (let i = 0; i < pile.length; i++) {
+        let card = pile[i];
+        let cardX = startX + (i % cardsPerRow) * spaceBetweenCards;
+        let cardY = startY + row * (3200 * cardScale) - scrollOffset;
         if (i > 0 && i % cardsPerRow === 4) {
-          row++; // Increment the row counter after every 5 cards
+            row++; // Increment the row counter after every 5 cards
         }
         card.display(cardX, cardY);
-      }
-      pop();
-  
-      // Draw the informational text
-      fill(255);
-      textSize(30);
-      textAlign(CENTER, BOTTOM);
-      text("Cards here are shuffled into your draw pile when it runs out of cards", width/2, height-50);
     }
-  }
+    pop();
+
+    // Draw the informational text
+    fill(0, 0, 0, 150); // Background for text
+    rect(width / 2, height - 100, 800, 100);
+    fill(255);
+    textSize(30);
+    textAlign(CENTER, BOTTOM);
+    text(infoText, width / 2, height - 50);
+}
+function displayDeckOverlay() {
+    if (showDeckOverlay) {
+        displayCardPileOverlay(deck, "You start each combat with all the cards in here", 1200, 400, 800, 5, deckScrollOffset);
+    }
+}
+
+function displayDrawPileOverlay() {
+    if (showDrawPileOverlay) {
+        displayCardPileOverlay(drawPile, "Cards are drawn from here at the start of each turn", 1200, 400, 800, 5, drawPileScrollOffset);
+    }
+}
+
+function displayDiscardOverlay() {
+    if (showDiscardOverlay) {
+        displayCardPileOverlay(discardPile, "Cards here are shuffled into your draw pile when it runs out of cards", 1200, 400, 800, 5, discardPileScrollOffset);
+    }
+}
+function mouseWheel(event) {
+    if (showDeckOverlay) {
+        deckScrollOffset += event.delta;
+        deckScrollOffset = constrain(deckScrollOffset, 0, deck.length*200); // Replace maxDeckScroll with a calculated max
+    } else if (showDrawPileOverlay) {
+        drawPileScrollOffset += event.delta;
+        drawPileScrollOffset = constrain(drawPileScrollOffset, 0, drawPile.length*200); // Replace maxDrawPileScroll with a calculated max
+    } else if (showDiscardOverlay) {
+        discardPileScrollOffset += event.delta;
+        discardPileScrollOffset = constrain(discardPileScrollOffset, 0, discardPile.length*200); // Replace maxDiscardPileScroll with a calculated max
+    }
+}
+
 function toggleDrawPileOverlay() {
-    showDrawPileOverlay = !showDrawPileOverlay;
-    showCurrentHand = !showCurrentHand;
+    if (!showDrawPileOverlay){
+        hideAllOverlays();
+        showDrawPileOverlay = true;
+    }else{
+        showDrawPileOverlay = false;
+    }
 }
 function toggleDiscardOverlay() {
-    showDiscardOverlay = !showDiscardOverlay;
-    showCurrentHand = !showCurrentHand;
+    if (!showDiscardOverlay){
+        hideAllOverlays();
+        showDiscardOverlay = true;
+    }else{
+        showDiscardOverlay = false;
+    }
 }
 function toggleMapOverlay() {
+    if (!showMapOverlay){
+        hideAllOverlays();
+        showMapOverlay = true;
+    }else{
+        showMapOverlay = false;
+    }
     let currentFloorY = calculateY(floor);
     mapY = height - currentFloorY - floorHeight*2;
-    showMapOverlay = !showMapOverlay;
-    showCurrentHand = !showCurrentHand;
 }
 function toggleDeckOverlay() {
-    showDeckOverlay = !showDeckOverlay;
-    showCurrentHand = !showCurrentHand;
+    if (!showDeckOverlay){
+        hideAllOverlays();
+        showDeckOverlay = true;
+    }else{
+        showDeckOverlay = false;
+    }
 }
 function toggleSettingsOverlay() {
-    showSettingsOverlay = !showSettingsOverlay;
-    showCurrentHand = !showCurrentHand;
+    if (!showSettingsOverlay){
+        hideAllOverlays();
+        showSettingsOverlay = true;
+    }else{
+        showSettingsOverlay = false;
+    }
 }
 function hideCurrentHand() {
     showCurrentHand = false;
@@ -1633,11 +1670,10 @@ function hideSettingsOverlay() {
     showSettingsOverlay = false;
 }
 function handleDrawPileClick() {
-    
+    //console.log(mouseX, mouseY, drawPileButtonX, drawPileButtonY, drawPileButtonWidth, drawPileButtonHeight, showDrawPileOverlay, showSettingsOverlay, showDeckOverlay, showMapOverlay, showDiscardOverlay)
     if (mouseX > drawPileButtonX && mouseX < drawPileButtonX + drawPileButtonWidth &&
         mouseY > drawPileButtonY && mouseY < drawPileButtonY + drawPileButtonHeight && 
         !showDiscardOverlay && !showSettingsOverlay && !showDeckOverlay && !showMapOverlay) {
-        console.log("Draw pile clicked");
         toggleDrawPileOverlay();
     }
 }
@@ -2459,7 +2495,9 @@ class Enemy {
     return newcard;
 }
 
+function playCardUpgradeAnimation(card) {
 
+}
   class Card {
     constructor(img,card,type,upgraded) {
       this.img = img;
@@ -2523,9 +2561,15 @@ class Enemy {
       fill(0);
       textSize(40);
       text(this.type, this.x+300, this.y+450);
-      fill(255);
       textSize(65);
-      text(this.card, this.x+300, this.y+45);
+      if (this.isUpgraded) {
+        fill(0, 255, 0); // Green color for upgraded card names
+        text(this.card+"+", this.x+300, this.y+45);
+        } else {
+        fill(255); // White color for regular card names
+        text(this.card, this.x+300, this.y+45);
+        }
+      fill(255);
       textSize(58);
       text(this.description, this.x+65, this.y+450, 500, 300); 
     }
@@ -2534,7 +2578,7 @@ class Enemy {
             console.log("Already upgraded!");
             return; // Already upgraded
         }
-        const upgradeData = cardData[this.name].upgrade;
+        const upgradeData = cardData[this.card].upgrade;
         if (upgradeData) {
             this.damage = upgradeData.damage || this.damage;
             this.block = upgradeData.block || this.block;
